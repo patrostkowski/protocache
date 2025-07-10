@@ -64,6 +64,18 @@ grpcurl -plaintext localhost:8080 list cache.CacheService
 
 ---
 
+## 🧪 Testing
+
+### ✅ Unit and E2E Tests
+
+```bash
+make test         # Run all tests
+make test-e2e     # Run E2E tests
+make bench        # Run benchmarks
+```
+
+---
+
 ## 🐳 Using Docker
 
 You can build and run Protocache via Docker.
@@ -84,4 +96,3 @@ make docker-run
 
 This runs the server and exposes port `8080` on your local machine.
 
----

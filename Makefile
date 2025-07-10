@@ -11,3 +11,12 @@ docker-build:
 
 docker-run:
 	docker run --rm --name protocache -p 8080:8080 ${DOCKER_IMAGE_NAME}
+
+test:
+	go test ./...
+
+test-e2e:
+	go test ./tests/e2e
+
+bench:
+	go test -bench=. -benchmem ./tests/benchmark
