@@ -96,3 +96,6 @@ make docker-run
 
 This runs the server and exposes port `8080` on your local machine.
 
+## License
+
+Protocache is licensed under the [Apache License 2.0](./LICENSE).
