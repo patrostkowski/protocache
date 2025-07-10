@@ -20,3 +20,6 @@ test-e2e:
 
 bench:
 	go test -bench=. -benchmem ./tests/benchmark
+
+create-cluster:
+	kind create cluster
