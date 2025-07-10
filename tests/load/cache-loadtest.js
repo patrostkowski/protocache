@@ -45,5 +45,16 @@ export default () => {
   const raw = encoding.b64decode(getResponse.message.value);
   console.log(`GET: VU ${__VU}, ITER ${__ITER}, key: ${key}, value: ${bytesToString(raw)}`);
 
+  if (__VU % 5 === 0) {
+    const delData = { key: key };
+    const delResponse = client.invoke('cache.CacheService/Delete', delData);
+
+    check(delResponse, {
+      'delete status is OK': (r) => r && r.status === StatusOK,
+    });
+
+    console.log(`DELETE: VU ${__VU}, ITER ${__ITER}, key: ${key}`);
+  }
+
   client.close();
 };
