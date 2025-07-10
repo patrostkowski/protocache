@@ -23,7 +23,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	cacheService := &internal.Server{}
+	cacheService := internal.NewServer()
 
 	pb.RegisterCacheServiceServer(grpcServer, cacheService)
 	reflection.Register(grpcServer)
