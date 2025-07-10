@@ -2,9 +2,13 @@ package internal
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 
 	pb "github.com/patrostkowski/protocache/api/pb"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 type Server struct {
@@ -51,4 +55,41 @@ func (s *Server) Clear(ctx context.Context, req *pb.ClearRequest) (*pb.ClearResp
 	defer s.mu.Unlock()
 	s.store = make(map[string][]byte)
 	return &pb.ClearResponse{Success: true, Message: "cleared"}, nil
+}
+
+func LoggingUnaryInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
+		resp, err := handler(ctx, req)
+
+		var remoteAddr string
+		if p, ok := peer.FromContext(ctx); ok {
+			remoteAddr = p.Addr.String()
+		}
+
+		st, _ := status.FromError(err)
+
+		var key string
+		switch r := req.(type) {
+		case *pb.SetRequest:
+			key = r.GetKey()
+		case *pb.GetRequest:
+			key = r.GetKey()
+		case *pb.DeleteRequest:
+			key = r.GetKey()
+		}
+
+		logger.Info("gRPC request",
+			slog.String("method", info.FullMethod),
+			slog.String("remote", remoteAddr),
+			slog.String("key", key),
+			slog.String("code", st.Code().String()),
+		)
+
+		return resp, err
+	}
 }

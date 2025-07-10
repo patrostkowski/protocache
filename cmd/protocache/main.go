@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
+	"os"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -17,19 +18,25 @@ const (
 )
 
 func main() {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", PORT))
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		panic(err)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(internal.LoggingUnaryInterceptor(logger)),
+	)
 	cacheService := internal.NewServer()
 
 	pb.RegisterCacheServiceServer(grpcServer, cacheService)
 	reflection.Register(grpcServer)
 
-	log.Printf("gRPC server listening on %d\n", PORT)
+	logger.Info("gRPC server listening", slog.Int("port", PORT))
 	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		panic(err)
 	}
 }
