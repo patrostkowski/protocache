@@ -3,7 +3,9 @@ package internal
 import (
 	"context"
 	"log/slog"
+	"runtime"
 	"sync"
+	"time"
 
 	pb "github.com/patrostkowski/protocache/api/pb"
 	"google.golang.org/grpc"
@@ -55,6 +57,23 @@ func (s *Server) Clear(ctx context.Context, req *pb.ClearRequest) (*pb.ClearResp
 	defer s.mu.Unlock()
 	s.store = make(map[string][]byte)
 	return &pb.ClearResponse{Success: true, Message: "cleared"}, nil
+}
+
+func (s *Server) Stats(ctx context.Context, _ *pb.StatsRequest) (*pb.StatsResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var totalBytes uint64
+	for _, v := range s.store {
+		totalBytes += uint64(len(v))
+	}
+
+	return &pb.StatsResponse{
+		KeyCount:         uint64(len(s.store)),
+		MemoryUsageBytes: totalBytes,
+		GoVersion:        runtime.Version(),
+		Timestamp:        time.Now().Format(time.RFC3339),
+	}, nil
 }
 
 func LoggingUnaryInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {

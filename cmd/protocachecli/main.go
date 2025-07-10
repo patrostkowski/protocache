@@ -81,6 +81,11 @@ func main() {
 		checkErr(err)
 		fmt.Println("Cache cleared")
 
+	case "stats":
+		res, err := client.Stats(ctx, &pb.StatsRequest{})
+		checkErr(err)
+		fmt.Println(res)
+
 	case "help":
 		usage()
 

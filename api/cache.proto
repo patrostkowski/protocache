@@ -9,6 +9,7 @@ service CacheService {
   rpc Get(GetRequest) returns (GetResponse);
   rpc Delete(DeleteRequest) returns (DeleteResponse);
   rpc Clear(ClearRequest) returns (ClearResponse);
+  rpc Stats(StatsRequest) returns (StatsResponse);
 }
 
 message SetRequest {
@@ -46,3 +47,13 @@ message ClearResponse {
   bool success = 1;
   string message = 2;
 }
+
+message StatsRequest {}
+
+message StatsResponse {
+  uint64 key_count = 1;
+  uint64 memory_usage_bytes = 2;
+  string go_version = 3;
+  string timestamp = 4;
+}
+

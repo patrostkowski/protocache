@@ -8,7 +8,6 @@ package cache
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -24,6 +23,7 @@ const (
 	CacheService_Get_FullMethodName    = "/cache.CacheService/Get"
 	CacheService_Delete_FullMethodName = "/cache.CacheService/Delete"
 	CacheService_Clear_FullMethodName  = "/cache.CacheService/Clear"
+	CacheService_Stats_FullMethodName  = "/cache.CacheService/Stats"
 )
 
 // CacheServiceClient is the client API for CacheService service.
@@ -34,6 +34,7 @@ type CacheServiceClient interface {
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
 	Clear(ctx context.Context, in *ClearRequest, opts ...grpc.CallOption) (*ClearResponse, error)
+	Stats(ctx context.Context, in *StatsRequest, opts ...grpc.CallOption) (*StatsResponse, error)
 }
 
 type cacheServiceClient struct {
@@ -84,6 +85,16 @@ func (c *cacheServiceClient) Clear(ctx context.Context, in *ClearRequest, opts .
 	return out, nil
 }
 
+func (c *cacheServiceClient) Stats(ctx context.Context, in *StatsRequest, opts ...grpc.CallOption) (*StatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StatsResponse)
+	err := c.cc.Invoke(ctx, CacheService_Stats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CacheServiceServer is the server API for CacheService service.
 // All implementations must embed UnimplementedCacheServiceServer
 // for forward compatibility
@@ -92,6 +103,7 @@ type CacheServiceServer interface {
 	Get(context.Context, *GetRequest) (*GetResponse, error)
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
 	Clear(context.Context, *ClearRequest) (*ClearResponse, error)
+	Stats(context.Context, *StatsRequest) (*StatsResponse, error)
 	mustEmbedUnimplementedCacheServiceServer()
 }
 
@@ -110,6 +122,9 @@ func (UnimplementedCacheServiceServer) Delete(context.Context, *DeleteRequest) (
 }
 func (UnimplementedCacheServiceServer) Clear(context.Context, *ClearRequest) (*ClearResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Clear not implemented")
+}
+func (UnimplementedCacheServiceServer) Stats(context.Context, *StatsRequest) (*StatsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Stats not implemented")
 }
 func (UnimplementedCacheServiceServer) mustEmbedUnimplementedCacheServiceServer() {}
 
@@ -196,6 +211,24 @@ func _CacheService_Clear_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CacheService_Stats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CacheServiceServer).Stats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CacheService_Stats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CacheServiceServer).Stats(ctx, req.(*StatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CacheService_ServiceDesc is the grpc.ServiceDesc for CacheService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -218,6 +251,10 @@ var CacheService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Clear",
 			Handler:    _CacheService_Clear_Handler,
+		},
+		{
+			MethodName: "Stats",
+			Handler:    _CacheService_Stats_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
