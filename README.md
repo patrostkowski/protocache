@@ -1,4 +1,3 @@
-
 # Protocache
 
 **Protocache** is a lightweight in-memory cache server with gRPC support.
@@ -7,41 +6,49 @@
 
 ### 1. Install Dependencies
 
-- Go (1.20+)
-- `protoc` (Protocol Buffers compiler)
-- `protoc-gen-go` and `protoc-gen-go-grpc` plugins
+- `Go` (1.24+)
+- `protoc` (3.19+)
+- `GNU Make` (4.0+)
+- `Docker` (28.0+)
 
 ### 2. Generate Protobuf Files
 
 ```bash
-protoc --go_out=. --go-grpc_out=. api/cache.proto
-```
-
-Ensure your `cache.proto` has a correct `go_package` directive like:
-
-```proto
-option go_package = "github.com/patrostkowski/protocache/api/pb;cache";
+make generate
 ```
 
 ### 3. Run the Server
 
 ```bash
-go run ./cmd/protocache
+make run
+```
+
+---
+
+## 🖥️ Using protocachecli
+
+`protocachecli` is a command-line client for interacting with the cache server.
+
+### ✅ Commands
+
+```bash
+protocachecli -host localhost -port 8080 set foo bar
+protocachecli -host localhost -port 8080 get foo
+protocachecli -host localhost -port 8080 del foo
+protocachecli -host localhost -port 8080 clear
+```
+
+If the `value` contains binary or non-UTF-8 data, it will be shown in base64 format.
+
+### ℹ️ Help
+
+```bash
+protocachecli --help
 ```
 
 ---
 
 ## 🔌 Using grpcurl
-
-### 📦 Server Reflection
-
-To use `grpcurl`, make sure to enable server reflection in `main.go`:
-
-```go
-import "google.golang.org/grpc/reflection"
-
-reflection.Register(grpcServer)
-```
 
 ### 🔍 List Services
 
@@ -55,55 +62,26 @@ grpcurl -plaintext localhost:8080 list
 grpcurl -plaintext localhost:8080 list cache.CacheService
 ```
 
-### 🧪 Call RPCs
-
-#### Set
-
-```bash
-grpcurl -plaintext -d '{"key":"foo","value":"YmFy"}' localhost:8080 cache.CacheService/Set
-```
-
-> Note: `value` must be base64-encoded (`"bar"` = `"YmFy"`)
-
-#### Get
-
-```bash
-grpcurl -plaintext -d '{"key":"foo"}' localhost:8080 cache.CacheService/Get
-```
-
-#### Delete
-
-```bash
-grpcurl -plaintext -d '{"key":"foo"}' localhost:8080 cache.CacheService/Delete
-```
-
-#### Clear
-
-```bash
-grpcurl -plaintext -d '{}' localhost:8080 cache.CacheService/Clear
-```
-
-### 🧵 Use Stdin Input
-
-```bash
-echo '{"key":"foo"}' | grpcurl -plaintext -d @ localhost:8080 cache.CacheService/Get
-```
-
 ---
 
-## 📁 Project Structure
+## 🐳 Using Docker
 
+You can build and run Protocache via Docker.
+
+### 🔧 Build the Docker Image
+
+```bash
+make docker-build
 ```
-protocache/
-├── api/
-│   ├── cache.proto
-│   └── pb/
-├── cmd/
-│   └── protocache/
-│       └── main.go
-├── internal/
-│   ├── grpcserver/
-│   └── cache/
-├── go.mod
-└── README.md
+
+This uses the image name: `patrostkowski/protocache`
+
+### 🚀 Run the Server in a Container
+
+```bash
+make docker-run
 ```
+
+This runs the server and exposes port `8080` on your local machine.
+
+---
