@@ -15,10 +15,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -28,29 +32,48 @@ import (
 )
 
 const (
-	PORT = 8080
+	PORT                    = 8080
+	SERVER_SHUTDOWN_TIMEOUT = 30 * time.Second
+	GRACEFUL_TIMEOUT_SEC    = 10 * time.Second
 )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
 
-	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", PORT))
-	if err != nil {
-		panic(err)
-	}
-
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(internal.LoggingUnaryInterceptor(logger)),
+		grpc.ConnectionTimeout(SERVER_SHUTDOWN_TIMEOUT),
 	)
 	cacheService := internal.NewServer()
-
 	pb.RegisterCacheServiceServer(grpcServer, cacheService)
 	reflection.Register(grpcServer)
 
-	logger.Info("gRPC server listening", slog.Int("port", PORT))
-	if err := grpcServer.Serve(lis); err != nil {
-		panic(err)
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", PORT))
+	if err != nil {
+		logger.Error("failed to listen", slog.Any("error", err))
+		os.Exit(1)
 	}
+	go func() {
+		logger.Info("gRPC server listening", slog.Int("port", PORT))
+		if err := grpcServer.Serve(lis); err != nil {
+			logger.Error("server error", slog.Any("error", err))
+			os.Exit(1)
+		}
+	}()
+
+	<-ctx.Done()
+	stop()
+	logger.Info("Signal received, attempting graceful shutdown")
+	timer := time.AfterFunc(GRACEFUL_TIMEOUT_SEC, func() {
+		logger.Warn("Graceful shutdown timeout exceeded, forcing stop")
+		grpcServer.Stop()
+	})
+	defer timer.Stop()
+	grpcServer.GracefulStop()
+	logger.Info("Server stopped")
 }
