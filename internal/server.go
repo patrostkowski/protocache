@@ -23,6 +23,7 @@ import (
 
 	pb "github.com/patrostkowski/protocache/api/pb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
@@ -41,6 +42,10 @@ func NewServer() *Server {
 }
 
 func (s *Server) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, error) {
+	if req.Key == "" {
+		return nil, status.Error(codes.InvalidArgument, "key must not be empty")
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.store[req.Key] = req.Value
@@ -50,18 +55,25 @@ func (s *Server) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, 
 func (s *Server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
 	val, ok := s.store[req.Key]
+
 	if !ok {
-		return &pb.GetResponse{Found: false, Message: "not found"}, nil
+		CacheMisses.Inc()
+		return nil, status.Errorf(codes.NotFound, "key %q not found", req.Key)
 	}
 
+	CacheHits.Inc()
 	return &pb.GetResponse{Found: true, Message: "found", Value: val}, nil
 }
 
 func (s *Server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if _, ok := s.store[req.Key]; !ok {
+		return nil, status.Errorf(codes.NotFound, "key %q not found", req.Key)
+	}
+
 	delete(s.store, req.Key)
 	return &pb.DeleteResponse{Success: true, Message: "deleted"}, nil
 }
@@ -106,20 +118,9 @@ func LoggingUnaryInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 
 		st, _ := status.FromError(err)
 
-		var key string
-		switch r := req.(type) {
-		case *pb.SetRequest:
-			key = r.GetKey()
-		case *pb.GetRequest:
-			key = r.GetKey()
-		case *pb.DeleteRequest:
-			key = r.GetKey()
-		}
-
 		logger.Info("gRPC request",
 			slog.String("method", info.FullMethod),
 			slog.String("remote", remoteAddr),
-			slog.String("key", key),
 			slog.String("code", st.Code().String()),
 		)
 
