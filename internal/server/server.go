@@ -12,19 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+package server
 
 import (
 	"context"
-	"log/slog"
 	"runtime"
 	"sync"
 	"time"
 
 	pb "github.com/patrostkowski/protocache/api/pb"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -100,30 +97,4 @@ func (s *Server) Stats(ctx context.Context, _ *pb.StatsRequest) (*pb.StatsRespon
 		GoVersion:        runtime.Version(),
 		Timestamp:        time.Now().Format(time.RFC3339),
 	}, nil
-}
-
-func LoggingUnaryInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
-	return func(
-		ctx context.Context,
-		req interface{},
-		info *grpc.UnaryServerInfo,
-		handler grpc.UnaryHandler,
-	) (interface{}, error) {
-		resp, err := handler(ctx, req)
-
-		var remoteAddr string
-		if p, ok := peer.FromContext(ctx); ok {
-			remoteAddr = p.Addr.String()
-		}
-
-		st, _ := status.FromError(err)
-
-		logger.Info("gRPC request",
-			slog.String("method", info.FullMethod),
-			slog.String("remote", remoteAddr),
-			slog.String("code", st.Code().String()),
-		)
-
-		return resp, err
-	}
 }

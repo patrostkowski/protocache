@@ -32,10 +32,10 @@ make run
 ### ✅ Commands
 
 ```bash
-protocachecli -host localhost -port 8080 set foo bar
-protocachecli -host localhost -port 8080 get foo
-protocachecli -host localhost -port 8080 del foo
-protocachecli -host localhost -port 8080 clear
+protocachecli -host localhost -port 50051 set foo bar
+protocachecli -host localhost -port 50051 get foo
+protocachecli -host localhost -port 50051 del foo
+protocachecli -host localhost -port 50051 clear
 ```
 
 If the `value` contains binary or non-UTF-8 data, it will be shown in base64 format.
@@ -53,13 +53,13 @@ protocachecli --help
 ### 🔍 List Services
 
 ```bash
-grpcurl -plaintext localhost:8080 list
+grpcurl -plaintext localhost:50051 list
 ```
 
 ### 📋 List Methods
 
 ```bash
-grpcurl -plaintext localhost:8080 list cache.CacheService
+grpcurl -plaintext localhost:50051 list cache.CacheService
 ```
 
 ---
@@ -94,7 +94,7 @@ This uses the image name: `patrostkowski/protocache`
 make docker-run
 ```
 
-This runs the server and exposes port `8080` on your local machine.
+This runs the server and exposes port `50051` on your local machine.
 
 ## License
 

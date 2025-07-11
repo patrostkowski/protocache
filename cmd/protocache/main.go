@@ -32,14 +32,20 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	pb "github.com/patrostkowski/protocache/api/pb"
-	internal "github.com/patrostkowski/protocache/internal"
+	"github.com/patrostkowski/protocache/internal/server"
 )
 
 const (
-	GRPC_PORT               = 8081
-	METRICS_PORT            = 8080
+	GRPC_PORT               = 50051
+	HTTP_PORT               = 9091
+	LISTEN_ADDR             = "0.0.0.0"
 	SERVER_SHUTDOWN_TIMEOUT = 30 * time.Second
 	GRACEFUL_TIMEOUT_SEC    = 10 * time.Second
+)
+
+var (
+	GRPC_ADDR = fmt.Sprintf("%s:%d", LISTEN_ADDR, GRPC_PORT)
+	HTTP_ADDR = fmt.Sprintf("%s:%d", LISTEN_ADDR, HTTP_PORT)
 )
 
 func main() {
@@ -50,7 +56,7 @@ func main() {
 	srvMetrics := grpcprom.NewServerMetrics()
 	prometheus.MustRegister(srvMetrics)
 
-	httpSrv := &http.Server{Addr: "0.0.0.0:8080"}
+	httpSrv := &http.Server{Addr: HTTP_ADDR}
 	m := http.NewServeMux()
 	m.Handle("/metrics", promhttp.Handler())
 	httpSrv.Handler = m
@@ -64,24 +70,26 @@ func main() {
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			srvMetrics.UnaryServerInterceptor(),
-			internal.LoggingUnaryInterceptor(logger),
+			server.LoggingUnaryInterceptor(logger),
 		),
 		grpc.ConnectionTimeout(SERVER_SHUTDOWN_TIMEOUT),
 	)
-	cacheService := internal.NewServer()
+	cacheService := server.NewServer()
 	pb.RegisterCacheServiceServer(grpcServer, cacheService)
 	srvMetrics.InitializeMetrics(grpcServer)
 	reflection.Register(grpcServer)
 
-	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", GRPC_PORT))
+	lis, err := net.Listen("tcp", GRPC_ADDR)
 	if err != nil {
 		logger.Error("failed to listen", slog.Any("error", err))
 		os.Exit(1)
 	}
+	defer lis.Close()
 	go func() {
 		logger.Info("gRPC server listening", slog.Int("port", GRPC_PORT))
 		if err := grpcServer.Serve(lis); err != nil {
 			logger.Error("server error", slog.Any("error", err))
+			lis.Close()
 			os.Exit(1)
 		}
 	}()

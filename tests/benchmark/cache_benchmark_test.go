@@ -20,11 +20,11 @@ import (
 	"testing"
 
 	pb "github.com/patrostkowski/protocache/api/pb"
-	"github.com/patrostkowski/protocache/internal"
+	"github.com/patrostkowski/protocache/internal/server"
 )
 
 func BenchmarkSet(b *testing.B) {
-	server := internal.NewServer()
+	server := server.NewServer()
 	ctx := context.Background()
 
 	for i := 0; i < b.N; i++ {
@@ -34,7 +34,7 @@ func BenchmarkSet(b *testing.B) {
 }
 
 func BenchmarkGet(b *testing.B) {
-	server := internal.NewServer()
+	server := server.NewServer()
 	ctx := context.Background()
 
 	// Preload a key
@@ -48,7 +48,7 @@ func BenchmarkGet(b *testing.B) {
 }
 
 func BenchmarkDelete(b *testing.B) {
-	server := internal.NewServer()
+	server := server.NewServer()
 	ctx := context.Background()
 
 	key := "key_to_delete"
@@ -59,7 +59,7 @@ func BenchmarkDelete(b *testing.B) {
 }
 
 func BenchmarkGetParallel(b *testing.B) {
-	server := internal.NewServer()
+	server := server.NewServer()
 	ctx := context.Background()
 	key := "hot"
 	server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("hit")})

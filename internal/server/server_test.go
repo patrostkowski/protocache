@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal_test
+package server
 
 import (
 	"context"
 	"testing"
 
 	pb "github.com/patrostkowski/protocache/api/pb"
-	"github.com/patrostkowski/protocache/internal"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSetAndGet(t *testing.T) {
-	server := internal.NewServer()
+	server := NewServer()
 	ctx := context.Background()
 
 	_, err := server.Set(ctx, &pb.SetRequest{Key: "foo", Value: []byte("bar")})
@@ -41,7 +40,7 @@ func TestSetAndGet(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	server := internal.NewServer()
+	server := NewServer()
 	ctx := context.Background()
 
 	server.Set(ctx, &pb.SetRequest{Key: "foo", Value: []byte("bar")})
@@ -54,7 +53,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestClear(t *testing.T) {
-	server := internal.NewServer()
+	server := NewServer()
 	ctx := context.Background()
 
 	server.Set(ctx, &pb.SetRequest{Key: "a", Value: []byte("1")})

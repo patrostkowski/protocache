@@ -19,27 +19,28 @@ import (
 	"net"
 	"testing"
 
-	pb "github.com/patrostkowski/protocache/api/pb"
-	"github.com/patrostkowski/protocache/internal"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	pb "github.com/patrostkowski/protocache/api/pb"
+	"github.com/patrostkowski/protocache/internal/server"
 )
 
 func startTestServer(t *testing.T) (addr string, stop func()) {
 	lis, err := net.Listen("tcp", "127.0.0.1:8080")
 	assert.NoError(t, err)
 
-	server := grpc.NewServer()
-	cacheService := internal.NewServer()
-	pb.RegisterCacheServiceServer(server, cacheService)
+	grpcServer := grpc.NewServer()
+	cacheService := server.NewServer()
+	pb.RegisterCacheServiceServer(grpcServer, cacheService)
 
 	go func() {
-		_ = server.Serve(lis)
+		_ = grpcServer.Serve(lis)
 	}()
 
 	return lis.Addr().String(), func() {
-		server.Stop()
+		grpcServer.Stop()
 		lis.Close()
 	}
 }
