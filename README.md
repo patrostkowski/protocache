@@ -11,10 +11,10 @@
 - `GNU Make` (4.0+)
 - `Docker` (28.0+)
 
-### 2. Generate Protobuf Files
+### 2. Build the binaries
 
 ```bash
-make generate
+make build-all
 ```
 
 ### 3. Run the Server
