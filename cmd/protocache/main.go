@@ -74,7 +74,13 @@ func main() {
 		),
 		grpc.ConnectionTimeout(SERVER_SHUTDOWN_TIMEOUT),
 	)
-	cacheService := server.NewServer()
+
+	cacheService := server.NewServer(logger)
+	if err := cacheService.ReadPersistedMemoryStore(); err != nil {
+		logger.Error("Failed to read the memory store dump", "error", err.Error())
+		os.Exit(1)
+	}
+
 	pb.RegisterCacheServiceServer(grpcServer, cacheService)
 	srvMetrics.InitializeMetrics(grpcServer)
 	reflection.Register(grpcServer)
@@ -103,5 +109,8 @@ func main() {
 	})
 	defer timer.Stop()
 	grpcServer.GracefulStop()
+	if err := cacheService.PersistMemoryStore(); err != nil {
+		logger.Error("Failed to persist memory store", "error", err)
+	}
 	logger.Info("Server stopped")
 }
