@@ -25,6 +25,7 @@ import (
 
 	pb "github.com/patrostkowski/protocache/api/pb"
 	"github.com/patrostkowski/protocache/internal/server"
+	testhelpers "github.com/patrostkowski/protocache/internal/test"
 )
 
 func startTestServer(t *testing.T) (addr string, stop func()) {
@@ -32,7 +33,7 @@ func startTestServer(t *testing.T) (addr string, stop func()) {
 	assert.NoError(t, err)
 
 	grpcServer := grpc.NewServer()
-	cacheService := server.NewServer()
+	cacheService := server.NewServer(testhelpers.DefaultLogger())
 	pb.RegisterCacheServiceServer(grpcServer, cacheService)
 
 	go func() {

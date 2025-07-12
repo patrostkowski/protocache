@@ -31,7 +31,7 @@ const client = new Client();
 client.load(['../../api'], 'cache.proto');
 
 export default () => {
-  client.connect('127.0.0.1:8081', { plaintext: true, reflect: true });
+  client.connect('127.0.0.1:50051', { plaintext: true, reflect: true });
 
   const key = `hello-${__VU}-${__ITER}`;
   const encodedValue = encoding.b64encode(key);
