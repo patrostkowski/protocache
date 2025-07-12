@@ -17,7 +17,9 @@ package server
 import (
 	"context"
 	"log/slog"
+	"maps"
 	"runtime"
+	"slices"
 	"sync"
 	"time"
 
@@ -87,6 +89,13 @@ func (s *Server) Clear(ctx context.Context, req *pb.ClearRequest) (*pb.ClearResp
 	defer s.mu.Unlock()
 	s.store = make(map[string][]byte)
 	return &pb.ClearResponse{Success: true, Message: "cleared"}, nil
+}
+
+func (s *Server) List(ctx context.Context, req *pb.ListRequest) (*pb.ListResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	keys := slices.Collect(maps.Keys(s.store))
+	return &pb.ListResponse{Keys: keys}, nil
 }
 
 func (s *Server) Stats(ctx context.Context, _ *pb.StatsRequest) (*pb.StatsResponse, error) {

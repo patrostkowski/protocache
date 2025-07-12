@@ -77,3 +77,20 @@ func BenchmarkGetParallel(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkList(b *testing.B) {
+	cfg := config.DefaultConfig()
+	server := server.NewServer(testhelpers.DefaultLogger(), cfg)
+	ctx := context.Background()
+
+	// Preload some keys
+	for i := 0; i < 1000; i++ {
+		key := "key" + strconv.Itoa(i)
+		server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")})
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		server.List(ctx, &pb.ListRequest{})
+	}
+}
