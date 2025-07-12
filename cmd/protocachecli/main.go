@@ -30,7 +30,7 @@ import (
 
 func main() {
 	host := flag.String("host", "localhost", "gRPC server host")
-	port := flag.Int("port", 8080, "gRPC server port")
+	port := flag.Int("port", 50051, "gRPC server port")
 	flag.Parse()
 	args := flag.Args()
 
@@ -111,7 +111,7 @@ func main() {
 
 func usage() {
 	fmt.Println(`Usage:
-  protocachecli [-host localhost] [-port 8080] <command> [args]
+  protocachecli [-host localhost] [-port 50051] <command> [args]
 
 Commands:
   set <key> <value>     Set a value
