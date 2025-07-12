@@ -73,6 +73,30 @@ func TestClear(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestList(t *testing.T) {
+	server := testhelpers.NewTestServer(t)
+	ctx := context.Background()
+
+	server.Set(ctx, &pb.SetRequest{Key: "a", Value: []byte("1")})
+	server.Set(ctx, &pb.SetRequest{Key: "b", Value: []byte("2")})
+
+	resp, err := server.List(ctx, &pb.ListRequest{})
+	assert.NoError(t, err)
+	assert.Contains(t, resp.Keys, "a")
+	assert.Contains(t, resp.Keys, "b")
+
+	server.Set(ctx, &pb.SetRequest{Key: "c", Value: []byte("3")})
+	resp, err = server.List(ctx, &pb.ListRequest{})
+	assert.NoError(t, err)
+	assert.Contains(t, resp.Keys, "c")
+
+	_, err = server.Clear(ctx, &pb.ClearRequest{})
+	assert.NoError(t, err)
+	resp, err = server.List(ctx, &pb.ListRequest{})
+	assert.NoError(t, err)
+	assert.Empty(t, resp.Keys)
+}
+
 func TestPersistAndReadMemoryStore(t *testing.T) {
 	tmpDir := t.TempDir()
 	dumpPath := filepath.Join(tmpDir, "store.gob.gz")

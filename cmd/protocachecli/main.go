@@ -95,6 +95,13 @@ func main() {
 		checkErr(err)
 		fmt.Println("Cache cleared")
 
+	case "list":
+		res, err := client.List(ctx, &pb.ListRequest{})
+		checkErr(err)
+		for _, k := range res.Keys {
+			fmt.Println(k)
+		}
+
 	case "stats":
 		res, err := client.Stats(ctx, &pb.StatsRequest{})
 		checkErr(err)

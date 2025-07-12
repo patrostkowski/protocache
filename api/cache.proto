@@ -19,11 +19,18 @@ package cache;
 option go_package = "api/pb;cache";
 
 service CacheService {
+  rpc List(ListRequest) returns (ListResponse);
   rpc Set(SetRequest) returns (SetResponse);
   rpc Get(GetRequest) returns (GetResponse);
   rpc Delete(DeleteRequest) returns (DeleteResponse);
   rpc Clear(ClearRequest) returns (ClearResponse);
   rpc Stats(StatsRequest) returns (StatsResponse);
+}
+
+message ListRequest {}
+
+message ListResponse {
+  repeated string keys = 2;
 }
 
 message SetRequest {
