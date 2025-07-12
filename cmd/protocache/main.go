@@ -19,11 +19,15 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -32,7 +36,8 @@ import (
 )
 
 const (
-	PORT                    = 8080
+	GRPC_PORT               = 8081
+	METRICS_PORT            = 8080
 	SERVER_SHUTDOWN_TIMEOUT = 30 * time.Second
 	GRACEFUL_TIMEOUT_SEC    = 10 * time.Second
 )
@@ -40,26 +45,41 @@ const (
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
+	srvMetrics := grpcprom.NewServerMetrics()
+	prometheus.MustRegister(srvMetrics)
+
+	httpSrv := &http.Server{Addr: "0.0.0.0:8080"}
+	m := http.NewServeMux()
+	m.Handle("/metrics", promhttp.Handler())
+	httpSrv.Handler = m
+	go func() {
+		logger.Info("starting HTTP server", "addr", httpSrv.Addr)
+		if err := httpSrv.ListenAndServe(); err != nil {
+			logger.Error("web server error", "err", err)
+		}
+	}()
 
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(internal.LoggingUnaryInterceptor(logger)),
+		grpc.ChainUnaryInterceptor(
+			srvMetrics.UnaryServerInterceptor(),
+			internal.LoggingUnaryInterceptor(logger),
+		),
 		grpc.ConnectionTimeout(SERVER_SHUTDOWN_TIMEOUT),
 	)
 	cacheService := internal.NewServer()
 	pb.RegisterCacheServiceServer(grpcServer, cacheService)
+	srvMetrics.InitializeMetrics(grpcServer)
 	reflection.Register(grpcServer)
 
-	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", PORT))
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", GRPC_PORT))
 	if err != nil {
 		logger.Error("failed to listen", slog.Any("error", err))
 		os.Exit(1)
 	}
 	go func() {
-		logger.Info("gRPC server listening", slog.Int("port", PORT))
+		logger.Info("gRPC server listening", slog.Int("port", GRPC_PORT))
 		if err := grpcServer.Serve(lis); err != nil {
 			logger.Error("server error", slog.Any("error", err))
 			os.Exit(1)
