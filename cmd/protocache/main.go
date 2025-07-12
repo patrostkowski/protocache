@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -32,20 +31,8 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	pb "github.com/patrostkowski/protocache/api/pb"
+	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/patrostkowski/protocache/internal/server"
-)
-
-const (
-	GRPC_PORT               = 50051
-	HTTP_PORT               = 9091
-	LISTEN_ADDR             = "0.0.0.0"
-	SERVER_SHUTDOWN_TIMEOUT = 30 * time.Second
-	GRACEFUL_TIMEOUT_SEC    = 10 * time.Second
-)
-
-var (
-	GRPC_ADDR = fmt.Sprintf("%s:%d", LISTEN_ADDR, GRPC_PORT)
-	HTTP_ADDR = fmt.Sprintf("%s:%d", LISTEN_ADDR, HTTP_PORT)
 )
 
 func main() {
@@ -56,7 +43,7 @@ func main() {
 	srvMetrics := grpcprom.NewServerMetrics()
 	prometheus.MustRegister(srvMetrics)
 
-	httpSrv := &http.Server{Addr: HTTP_ADDR}
+	httpSrv := &http.Server{Addr: config.HTTPAddr}
 	m := http.NewServeMux()
 	m.Handle("/metrics", promhttp.Handler())
 	httpSrv.Handler = m
@@ -72,10 +59,11 @@ func main() {
 			srvMetrics.UnaryServerInterceptor(),
 			server.LoggingUnaryInterceptor(logger),
 		),
-		grpc.ConnectionTimeout(SERVER_SHUTDOWN_TIMEOUT),
+		grpc.ConnectionTimeout(config.ServerShutdownTimeout),
 	)
 
-	cacheService := server.NewServer(logger)
+	cfg := config.DefaultConfig()
+	cacheService := server.NewServer(logger, cfg)
 	if err := cacheService.ReadPersistedMemoryStore(); err != nil {
 		logger.Error("Failed to read the memory store dump", "error", err.Error())
 		os.Exit(1)
@@ -85,14 +73,14 @@ func main() {
 	srvMetrics.InitializeMetrics(grpcServer)
 	reflection.Register(grpcServer)
 
-	lis, err := net.Listen("tcp", GRPC_ADDR)
+	lis, err := net.Listen("tcp", config.GRPCAddr)
 	if err != nil {
 		logger.Error("failed to listen", slog.Any("error", err))
 		os.Exit(1)
 	}
 	defer lis.Close()
 	go func() {
-		logger.Info("gRPC server listening", slog.Int("port", GRPC_PORT))
+		logger.Info("gRPC server listening", slog.Int("port", config.GRPCPort))
 		if err := grpcServer.Serve(lis); err != nil {
 			logger.Error("server error", slog.Any("error", err))
 			lis.Close()
@@ -103,7 +91,7 @@ func main() {
 	<-ctx.Done()
 	stop()
 	logger.Info("Signal received, attempting graceful shutdown")
-	timer := time.AfterFunc(GRACEFUL_TIMEOUT_SEC, func() {
+	timer := time.AfterFunc(config.GracefulTimeout, func() {
 		logger.Warn("Graceful shutdown timeout exceeded, forcing stop")
 		grpcServer.Stop()
 	})
