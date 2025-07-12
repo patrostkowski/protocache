@@ -124,6 +124,7 @@ Commands:
   set <key> <value>     Set a value
   get <key>             Get a value
   del <key>             Delete a key
+  list                  List all keys
   stats                 Print server stats
   clear                 Clear the cache`)
 }
