@@ -21,9 +21,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
 	pb "github.com/patrostkowski/protocache/api/pb"
+	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/patrostkowski/protocache/internal/server"
 	testhelpers "github.com/patrostkowski/protocache/internal/test"
 )
@@ -32,8 +35,11 @@ func startTestServer(t *testing.T) (addr string, stop func()) {
 	lis, err := net.Listen("tcp", "127.0.0.1:8080")
 	assert.NoError(t, err)
 
+	cfg := config.DefaultConfig()
+	cacheService := server.NewServer(testhelpers.DefaultLogger(), cfg)
+	assert.NoError(t, err)
+
 	grpcServer := grpc.NewServer()
-	cacheService := server.NewServer(testhelpers.DefaultLogger())
 	pb.RegisterCacheServiceServer(grpcServer, cacheService)
 
 	go func() {
@@ -72,6 +78,10 @@ func TestCacheService_E2E(t *testing.T) {
 	assert.NoError(t, err)
 
 	getResp, err = client.Get(ctx, &pb.GetRequest{Key: "test"})
-	assert.NoError(t, err)
-	assert.False(t, getResp.Found)
+	assert.Error(t, err)
+	assert.Nil(t, getResp)
+
+	st, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.NotFound, st.Code())
 }

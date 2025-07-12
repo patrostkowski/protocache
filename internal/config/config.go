@@ -13,3 +13,35 @@
 // limitations under the License.
 
 package config
+
+import (
+	"fmt"
+	"time"
+)
+
+const (
+	GRPCPort              = 50051
+	HTTPPort              = 9091
+	ListenAddr            = "0.0.0.0"
+	ServerShutdownTimeout = 30 * time.Second
+	GracefulTimeout       = 10 * time.Second
+	MemoryDumpPath        = "/var/lib/protocache/"
+	MemoryDumpFileName    = "protocache.gob.gz"
+)
+
+var (
+	GRPCAddr = fmt.Sprintf("%s:%d", ListenAddr, GRPCPort)
+	HTTPAddr = fmt.Sprintf("%s:%d", ListenAddr, HTTPPort)
+
+	MemoryDumpFileFullPath = MemoryDumpPath + MemoryDumpFileName
+)
+
+type Config struct {
+	MemoryDumpFilePath string
+}
+
+func DefaultConfig() *Config {
+	return &Config{
+		MemoryDumpFilePath: MemoryDumpFileFullPath,
+	}
+}

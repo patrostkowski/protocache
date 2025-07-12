@@ -15,27 +15,17 @@
 package server
 
 import (
-	"compress/gzip"
 	"context"
-	"encoding/gob"
-	"errors"
 	"log/slog"
-	"os"
 	"runtime"
 	"sync"
 	"time"
 
 	pb "github.com/patrostkowski/protocache/api/pb"
+	"github.com/patrostkowski/protocache/internal/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-const (
-	MemoryDumpPath     = "/var/lib/protocache/"
-	MemoryDumpFileName = "protocache.gob.gz"
-)
-
-var MemoryDumpFileFullPath = MemoryDumpPath + MemoryDumpFileName
 
 type Server struct {
 	pb.UnimplementedCacheServiceServer
@@ -44,12 +34,14 @@ type Server struct {
 	store map[string][]byte
 
 	logger *slog.Logger
+	config *config.Config
 }
 
-func NewServer(logger *slog.Logger) *Server {
+func NewServer(logger *slog.Logger, config *config.Config) *Server {
 	return &Server{
 		store:  make(map[string][]byte),
 		logger: logger,
+		config: config,
 	}
 }
 
@@ -112,68 +104,4 @@ func (s *Server) Stats(ctx context.Context, _ *pb.StatsRequest) (*pb.StatsRespon
 		GoVersion:        runtime.Version(),
 		Timestamp:        time.Now().Format(time.RFC3339),
 	}, nil
-}
-
-func (s *Server) PersistMemoryStore() error {
-	if err := os.MkdirAll(MemoryDumpPath, 0700); err != nil {
-		s.logger.Error("Failed to create directory for memory store dump", "error", err.Error())
-		return err
-	}
-
-	f, err := os.OpenFile(MemoryDumpFileFullPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		s.logger.Error("Failed to open memory store dump file", "error", err.Error())
-		return err
-	}
-	defer f.Close()
-
-	gz := gzip.NewWriter(f)
-	defer gz.Close()
-
-	e := gob.NewEncoder(gz)
-	if err := e.Encode(s.store); err != nil {
-		s.logger.Error("Failed to encode the memory store", "error", err.Error())
-		return err
-	}
-
-	s.logger.Info("Succesfully written memory store dump to file", "path", MemoryDumpFileFullPath)
-	return nil
-}
-
-func (s *Server) ReadPersistedMemoryStore() error {
-	f, err := os.Open(MemoryDumpFileFullPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			s.logger.Warn("Memory store dump file does not exist, starting with empty store")
-			return nil
-		}
-		s.logger.Error("Failed to open memory store dump file", "error", err.Error())
-		return err
-	}
-	defer f.Close()
-
-	fs, err := f.Stat()
-	if err != nil {
-		s.logger.Error("Failed to get memory store dump file stats", "error", err.Error())
-		return err
-	}
-	if fs.Size() == 0 {
-		s.logger.Warn("Memory store dump is empty, skipping load")
-		return nil
-	}
-
-	gz, err := gzip.NewReader(f)
-	if err != nil {
-		return err
-	}
-	defer gz.Close()
-
-	d := gob.NewDecoder(gz)
-	if err := d.Decode(&s.store); err != nil {
-		s.logger.Error("Failed to decode memory store dump file", "error", err.Error())
-		return err
-	}
-
-	s.logger.Info("Succesfully read memory store dump to memory", "size", len(s.store))
-	return nil
 }
