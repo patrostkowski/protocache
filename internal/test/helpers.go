@@ -35,7 +35,9 @@ func NewTestServer(t *testing.T) *server.Server {
 	dumpPath := filepath.Join(tmpDir, "store.gob.gz")
 
 	cfg := &config.Config{
-		MemoryDumpFilePath: dumpPath,
+		StoreConfig: config.StoreConfig{
+			MemoryDumpPath: dumpPath,
+		},
 	}
 
 	return server.NewServer(DefaultLogger(), cfg)

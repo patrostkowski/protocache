@@ -100,7 +100,11 @@ func TestList(t *testing.T) {
 func TestPersistAndReadMemoryStore(t *testing.T) {
 	tmpDir := t.TempDir()
 	dumpPath := filepath.Join(tmpDir, "store.gob.gz")
-	cfg := &config.Config{MemoryDumpFilePath: dumpPath}
+	cfg := &config.Config{
+		StoreConfig: config.StoreConfig{
+			MemoryDumpPath: dumpPath,
+		},
+	}
 
 	logger := testhelpers.DefaultLogger()
 
@@ -144,7 +148,9 @@ func TestReadPersistedMemoryStore_EmptyFile(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		MemoryDumpFilePath: dumpPath,
+		StoreConfig: config.StoreConfig{
+			MemoryDumpPath: dumpPath,
+		},
 	}
 
 	s := server.NewServer(testhelpers.DefaultLogger(), cfg)

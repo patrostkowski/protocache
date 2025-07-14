@@ -60,12 +60,13 @@ func openStoreFileForRead(path string) (io.ReadCloser, error) {
 }
 
 func (s *Server) PersistMemoryStore() error {
-	if err := os.MkdirAll(filepath.Dir(s.config.MemoryDumpFilePath), 0700); err != nil {
+	path := s.config.MemoryDumpFileFullPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		s.logger.Error("Failed to create directory for memory store dump", "error", err.Error())
 		return err
 	}
 
-	f, err := openStoreFileForWrite(s.config.MemoryDumpFilePath)
+	f, err := openStoreFileForWrite(path)
 	if err != nil {
 		s.logger.Error("Failed to open memory store dump file", "error", err.Error())
 		return err
@@ -77,12 +78,13 @@ func (s *Server) PersistMemoryStore() error {
 		return err
 	}
 
-	s.logger.Info("Successfully written memory store dump to file", "path", s.config.MemoryDumpFilePath)
+	s.logger.Info("Successfully written memory store dump to file", "path", path)
 	return nil
 }
 
 func (s *Server) ReadPersistedMemoryStore() error {
-	f, err := openStoreFileForRead(s.config.MemoryDumpFilePath)
+	path := s.config.MemoryDumpFileFullPath()
+	f, err := openStoreFileForRead(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) || errors.Is(err, io.EOF) {
 			s.logger.Warn("Memory store dump file does not exist or is empty, starting with empty store")

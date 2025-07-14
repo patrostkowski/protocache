@@ -16,7 +16,13 @@ package config
 
 import (
 	"fmt"
+	"net"
+	"os"
+	"path/filepath"
+	"strconv"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -27,6 +33,8 @@ const (
 	GracefulTimeout       = 10 * time.Second
 	MemoryDumpPath        = "/var/lib/protocache/"
 	MemoryDumpFileName    = "protocache.gob.gz"
+	ConfigFilePath        = "/etc/protocache/"
+	ConfigFileName        = "config.yaml"
 )
 
 var (
@@ -36,12 +44,70 @@ var (
 	MemoryDumpFileFullPath = MemoryDumpPath + MemoryDumpFileName
 )
 
+var configFileFullPath = func() string {
+	return filepath.Join(ConfigFilePath, ConfigFileName)
+}
+
+type ServerConfig struct {
+	GRPCPort        int           `yaml:"grpc_port"`
+	HTTPPort        int           `yaml:"http_port"`
+	ListenAddr      string        `yaml:"listen_addr"`
+	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
+	GracefulTimeout time.Duration `yaml:"graceful_timeout"`
+}
+
+type StoreConfig struct {
+	DumpEnabled        bool   `yaml:"dump_enabled"`
+	MemoryDumpPath     string `yaml:"memory_dump_path"`
+	MemoryDumpFileName string `yaml:"memory_dump_file_name"`
+}
+
 type Config struct {
-	MemoryDumpFilePath string
+	ServerConfig `yaml:"server"`
+	StoreConfig  `yaml:"store"`
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		MemoryDumpFilePath: MemoryDumpFileFullPath,
+		ServerConfig: ServerConfig{
+			GRPCPort:        GRPCPort,
+			HTTPPort:        HTTPPort,
+			ListenAddr:      ListenAddr,
+			ShutdownTimeout: ServerShutdownTimeout,
+			GracefulTimeout: GracefulTimeout,
+		},
+		StoreConfig: StoreConfig{
+			DumpEnabled:        false,
+			MemoryDumpPath:     MemoryDumpPath,
+			MemoryDumpFileName: MemoryDumpFileName,
+		},
 	}
+}
+
+func (c *Config) MemoryDumpFileFullPath() string {
+	return filepath.Join(c.StoreConfig.MemoryDumpPath, c.StoreConfig.MemoryDumpFileName)
+}
+
+func (c *Config) HTTPListenAddr() string {
+	return net.JoinHostPort(c.ServerConfig.ListenAddr, strconv.Itoa(c.ServerConfig.HTTPPort))
+}
+
+func (c *Config) GRPCListenAddr() string {
+	return net.JoinHostPort(c.ServerConfig.ListenAddr, strconv.Itoa(c.ServerConfig.GRPCPort))
+}
+
+func (c *Config) IsMemoryStoreDumpEnabled() bool {
+	return c.StoreConfig.DumpEnabled
+}
+
+func LoadConfig() (*Config, error) {
+	cfg := DefaultConfig() // ← use defaults
+	data, err := os.ReadFile(configFileFullPath())
+	if err != nil {
+		return nil, err
+	}
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
