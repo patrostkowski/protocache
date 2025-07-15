@@ -22,10 +22,15 @@ import (
 
 	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/patrostkowski/protocache/internal/server"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func DefaultLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+}
+
+func DefaultPrometheusRegistry() *prometheus.Registry {
+	return prometheus.NewRegistry()
 }
 
 func NewTestServer(t *testing.T) *server.Server {
@@ -40,5 +45,7 @@ func NewTestServer(t *testing.T) *server.Server {
 		},
 	}
 
-	return server.NewServer(DefaultLogger(), cfg)
+	reg := DefaultPrometheusRegistry()
+
+	return server.NewServer(DefaultLogger(), cfg, reg)
 }

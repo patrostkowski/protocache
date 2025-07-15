@@ -27,7 +27,7 @@ import (
 
 func BenchmarkSet(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := server.NewServer(testhelpers.DefaultLogger(), cfg)
+	server := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	for i := 0; i < b.N; i++ {
@@ -38,7 +38,7 @@ func BenchmarkSet(b *testing.B) {
 
 func BenchmarkGet(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := server.NewServer(testhelpers.DefaultLogger(), cfg)
+	server := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	// Preload a key
@@ -53,7 +53,7 @@ func BenchmarkGet(b *testing.B) {
 
 func BenchmarkDelete(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := server.NewServer(testhelpers.DefaultLogger(), cfg)
+	server := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	key := "key_to_delete"
@@ -65,7 +65,7 @@ func BenchmarkDelete(b *testing.B) {
 
 func BenchmarkGetParallel(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := server.NewServer(testhelpers.DefaultLogger(), cfg)
+	server := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 	ctx := context.Background()
 	key := "hot"
 	server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("hit")})
@@ -80,7 +80,7 @@ func BenchmarkGetParallel(b *testing.B) {
 
 func BenchmarkList(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := server.NewServer(testhelpers.DefaultLogger(), cfg)
+	server := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	// Preload some keys
