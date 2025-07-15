@@ -17,6 +17,7 @@ package server
 import (
 	"context"
 	"log/slog"
+	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
@@ -30,6 +31,10 @@ func LoggingUnaryInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
+		if !strings.HasPrefix(info.FullMethod, "/cache.CacheService/") {
+			return handler(ctx, req)
+		}
+
 		resp, err := handler(ctx, req)
 
 		var remoteAddr string

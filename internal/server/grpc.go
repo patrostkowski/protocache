@@ -2,19 +2,59 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"maps"
 	"runtime"
 	"slices"
 	"time"
 
+	"github.com/hashicorp/raft"
 	pb "github.com/patrostkowski/protocache/api/pb"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
 func (s *Server) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, error) {
 	if req.Key == "" {
 		return nil, status.Error(codes.InvalidArgument, "key must not be empty")
+	}
+
+	// If not the leader, forward to leader
+	if s.raft.State() != raft.Leader {
+		leader := s.raft.Leader()
+		if leader == "" {
+			return nil, status.Error(codes.Unavailable, "no leader elected")
+		}
+
+		conn, err := grpc.NewClient(string(leader), grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return nil, status.Errorf(codes.Unavailable, "failed to connect to leader: %v", err)
+		}
+		defer conn.Close()
+
+		client := pb.NewCacheServiceClient(conn)
+		return client.Set(ctx, req)
+	}
+
+	cmd := struct {
+		Op    string
+		Key   string
+		Value []byte
+	}{
+		Op:    "set",
+		Key:   req.Key,
+		Value: req.Value,
+	}
+	data, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to marshal command: %v", err)
+	}
+
+	future := s.raft.Apply(data, 5*time.Second)
+	if err := future.Error(); err != nil {
+		return nil, status.Errorf(codes.Internal, "raft apply failed: %v", err)
 	}
 
 	s.mu.Lock()

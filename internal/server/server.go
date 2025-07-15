@@ -146,6 +146,11 @@ func (s *Server) Shutdown() error {
 
 	s.grpcServer.GracefulStop()
 
+	future := s.raft.Shutdown()
+	if err := future.Error(); err != nil && err != raft.ErrRaftShutdown {
+		return err
+	}
+
 	if err := s.httpServer.Shutdown(context.Background()); err != nil {
 		s.logger.Error("Error shutting down HTTP server", "error", err)
 	}
