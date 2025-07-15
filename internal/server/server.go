@@ -18,15 +18,25 @@ import (
 	"context"
 	"log/slog"
 	"maps"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
 	"runtime"
 	"slices"
 	"sync"
+	"syscall"
 	"time"
+
+	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 
 	pb "github.com/patrostkowski/protocache/api/pb"
 	"github.com/patrostkowski/protocache/internal/config"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type Server struct {
@@ -35,15 +45,23 @@ type Server struct {
 	mu    sync.RWMutex
 	store map[string][]byte
 
-	logger *slog.Logger
-	config *config.Config
+	logger     *slog.Logger
+	config     *config.Config
+	grpcServer *grpc.Server
+	httpServer *http.Server
+	metrics    *grpcprom.ServerMetrics
+	registry   prometheus.Registerer
 }
 
-func NewServer(logger *slog.Logger, config *config.Config) *Server {
+func NewServer(logger *slog.Logger, config *config.Config, reg prometheus.Registerer) *Server {
+	if reg == nil {
+		reg = prometheus.DefaultRegisterer
+	}
 	return &Server{
-		store:  make(map[string][]byte),
-		logger: logger,
-		config: config,
+		store:    make(map[string][]byte),
+		logger:   logger,
+		config:   config,
+		registry: reg,
 	}
 }
 
@@ -113,4 +131,119 @@ func (s *Server) Stats(ctx context.Context, _ *pb.StatsRequest) (*pb.StatsRespon
 		GoVersion:        runtime.Version(),
 		Timestamp:        time.Now().Format(time.RFC3339),
 	}, nil
+}
+
+func (s *Server) Init() error {
+	s.metrics = grpcprom.NewServerMetrics()
+	if err := s.registry.Register(s.metrics); err != nil {
+		return err
+	}
+
+	s.grpcServer = grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			s.metrics.UnaryServerInterceptor(),
+			LoggingUnaryInterceptor(s.logger),
+		),
+		grpc.ConnectionTimeout(s.config.ServerConfig.ShutdownTimeout),
+	)
+
+	pb.RegisterCacheServiceServer(s.grpcServer, s)
+	s.metrics.InitializeMetrics(s.grpcServer)
+	reflection.Register(s.grpcServer)
+
+	s.httpServer = &http.Server{
+		Addr:    s.config.HTTPListenAddr(),
+		Handler: s.metricsHandler(),
+	}
+
+	if s.config.IsMemoryStoreDumpEnabled() {
+		if err := s.ReadPersistedMemoryStore(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Server) Start(ctx context.Context) error {
+	errCh := make(chan error, 2)
+
+	go func() {
+		s.logger.Info("Starting HTTP server", "addr", s.httpServer.Addr)
+		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errCh <- err
+		}
+	}()
+
+	lis, err := net.Listen("tcp", s.config.GRPCListenAddr())
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		s.logger.Info("Starting gRPC server", "addr", lis.Addr())
+		if err := s.grpcServer.Serve(lis); err != nil {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		s.logger.Info("Shutdown signal received")
+	case err := <-errCh:
+		s.logger.Error("Server crashed", "error", err)
+		return err
+	}
+
+	return s.Shutdown()
+}
+
+func (s *Server) Shutdown() error {
+	shutdownTimer := time.AfterFunc(s.config.ServerConfig.GracefulTimeout, func() {
+		s.logger.Warn("Graceful shutdown timeout exceeded, forcing stop")
+		s.grpcServer.Stop()
+	})
+	defer shutdownTimer.Stop()
+
+	s.grpcServer.GracefulStop()
+
+	if err := s.httpServer.Shutdown(context.Background()); err != nil {
+		s.logger.Error("Error shutting down HTTP server", "error", err)
+	}
+
+	if s.config.IsMemoryStoreDumpEnabled() {
+		if err := s.PersistMemoryStore(); err != nil {
+			s.logger.Error("Failed to persist memory store", "error", err)
+			return err
+		}
+	}
+
+	s.logger.Info("Server shut down cleanly")
+	return nil
+}
+
+func Run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		logger.Warn("Could not load config from file, using default config", "error", err)
+		cfg = config.DefaultConfig()
+	}
+
+	srv := NewServer(logger, cfg, prometheus.DefaultRegisterer)
+
+	if err := srv.Init(); err != nil {
+		logger.Error("Initialization failed", "error", err)
+		return err
+	}
+
+	if err := srv.Start(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }

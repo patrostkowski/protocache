@@ -36,7 +36,7 @@ func startTestServer(t *testing.T) (addr string, stop func()) {
 	assert.NoError(t, err)
 
 	cfg := config.DefaultConfig()
-	cacheService := server.NewServer(testhelpers.DefaultLogger(), cfg)
+	cacheService := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 	assert.NoError(t, err)
 
 	grpcServer := grpc.NewServer()

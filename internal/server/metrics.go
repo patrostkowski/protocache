@@ -15,7 +15,10 @@
 package server
 
 import (
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -39,4 +42,10 @@ func init() {
 		CacheHits,
 		CacheMisses,
 	)
+}
+
+func (s *Server) metricsHandler() http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	return mux
 }
