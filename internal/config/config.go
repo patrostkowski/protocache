@@ -15,13 +15,16 @@
 package config
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
 
@@ -35,6 +38,7 @@ const (
 	MemoryDumpFileName    = "protocache.gob.gz"
 	ConfigFilePath        = "/etc/protocache/"
 	ConfigFileName        = "config.yaml"
+	RaftDirPath           = "/var/lib/protocache/raft"
 )
 
 var (
@@ -63,12 +67,22 @@ type StoreConfig struct {
 }
 
 type Config struct {
-	ServerConfig `yaml:"server"`
-	StoreConfig  `yaml:"store"`
+	ID             string   `yaml:"id"`
+	ClusterMembers []string `yaml:"cluster_members"`
+	InitCluster    bool     `yaml:"cluster_members"`
+	ServerConfig   `yaml:"server"`
+	StoreConfig    `yaml:"store"`
+}
+
+type CLIFlags struct {
+	ID             *string
+	ClusterMembers string
+	InitCluster    *bool
 }
 
 func DefaultConfig() *Config {
 	return &Config{
+		ID: uuid.NewString(),
 		ServerConfig: ServerConfig{
 			GRPCPort:        GRPCPort,
 			HTTPPort:        HTTPPort,
@@ -110,4 +124,69 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+func ParseCLIFlags() *CLIFlags {
+	id := flag.String("id", "", "Node identifier")
+	clusterMembers := flag.String("cluster-members", "", "Comma separated list of Raft cluster members")
+	initCluster := flag.Bool("init-cluster", false, "Initialize Raft cluster using this node")
+
+	flag.Parse()
+
+	return &CLIFlags{
+		ID:             id,
+		ClusterMembers: *clusterMembers,
+		InitCluster:    initCluster,
+	}
+}
+
+func LoadAndMergeConfig(cli *CLIFlags) (*Config, error) {
+	fileCfg, err := LoadConfig()
+	if err != nil {
+		fileCfg = DefaultConfig()
+	}
+
+	cfg := *fileCfg // copy
+
+	if cli.ID != nil && *cli.ID != "" {
+		cfg.ID = *cli.ID
+	}
+	if len(cli.ClusterMembers) > 0 && cli.ClusterMembers != "" {
+		cfg.ClusterMembers = strings.Split(cli.ClusterMembers, ",")
+	}
+	cfg.InitCluster = *cli.InitCluster
+
+	return &cfg, err
+}
+
+func GetContainerIP() (string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			if ipv4 := ip.To4(); ipv4 != nil {
+				return ipv4.String(), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no valid non-loopback IPv4 address found")
 }

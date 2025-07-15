@@ -27,7 +27,7 @@ docker-build:
 	docker build -t ${DOCKER_IMAGE_NAME} .
 
 docker-run:
-	docker run --rm --network="host" --name protocache ${DOCKER_IMAGE_NAME}
+	docker run --rm -p 50051:50051 -p 9091:9091 --name protocache ${DOCKER_IMAGE_NAME} -id single
 
 test:
 	go test ./...

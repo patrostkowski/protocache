@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  node0:
+    image: patrostkowski/protocache:latest
+    container_name: node0
+    command: >
+      -id node0
+      -cluster-members=node0:50051,node1:50051,node2:50051
+      -init-cluster=true
+    ports:
+      - "50051:50051"
+      - "9091:9091"
+    networks:
+      protocache:
+        aliases:
+          - node0
+
+  node1:
+    image: patrostkowski/protocache:latest
+    container_name: node1
+    command: >
+      -id node1
+      -cluster-members=node0:50051,node1:50051,node2:50051
+    depends_on:
+      - node0
+    networks:
+      protocache:
+        aliases:
+          - node1
+
+  node2:
+    image: patrostkowski/protocache:latest
+    container_name: node2
+    command: >
+      -id node2
+      -cluster-members=node0:50051,node1:50051,node2:50051
+    depends_on:
+      - node1
+    networks:
+      protocache:
+        aliases:
+          - node2
+
+networks:
+  protocache:
+    driver: bridge

@@ -25,7 +25,7 @@ import (
 )
 
 func TestEncodeAndDecodeStore(t *testing.T) {
-	original := map[string][]byte{
+	original := Store{
 		"foo": []byte("bar"),
 		"baz": []byte("qux"),
 	}
@@ -36,7 +36,7 @@ func TestEncodeAndDecodeStore(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Greater(t, buf.Len(), 0)
 
-	var decoded map[string][]byte
+	var decoded Store
 	err = decodeAndDecompress(&buf, &decoded)
 	assert.NoError(t, err)
 
@@ -51,7 +51,7 @@ func TestOpenStoreFileForWriteAndRead(t *testing.T) {
 	assert.NoError(t, err)
 	defer w.Close()
 
-	testData := map[string][]byte{"k": []byte("v")}
+	testData := Store{"k": []byte("v")}
 	err = encodeAndCompress(w, testData)
 	assert.NoError(t, err)
 
@@ -59,7 +59,7 @@ func TestOpenStoreFileForWriteAndRead(t *testing.T) {
 	assert.NoError(t, err)
 	defer r.Close()
 
-	var decoded map[string][]byte
+	var decoded Store
 	err = decodeAndDecompress(r, &decoded)
 	assert.NoError(t, err)
 

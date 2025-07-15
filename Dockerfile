@@ -25,9 +25,18 @@ RUN go build -o protocachecli ./cmd/protocachecli
 
 FROM debian:bullseye-slim
 
+RUN addgroup --system protocache && adduser --system --ingroup protocache protocache
+
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/protocache /usr/local/bin/protocache
 COPY --from=builder /app/protocachecli /usr/local/bin/protocachecli
+
+RUN mkdir -p /var/lib/protocache /etc/protocache && \
+    chown -R protocache:protocache /var/lib/protocache /etc/protocache
+
+USER protocache
+
+WORKDIR /home/protocache
 
 ENTRYPOINT ["/usr/local/bin/protocache"]

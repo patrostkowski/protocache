@@ -23,13 +23,15 @@ import (
 	"path/filepath"
 )
 
-func encodeAndCompress(w io.Writer, store map[string][]byte) error {
+type Store map[string][]byte
+
+func encodeAndCompress(w io.Writer, store Store) error {
 	gz := gzip.NewWriter(w)
 	defer gz.Close()
 	return gob.NewEncoder(gz).Encode(store)
 }
 
-func decodeAndDecompress(r io.Reader, store *map[string][]byte) error {
+func decodeAndDecompress(r io.Reader, store *Store) error {
 	gz, err := gzip.NewReader(r)
 	if err != nil {
 		return err
