@@ -47,6 +47,7 @@ type Server struct {
 
 	logger     *slog.Logger
 	config     *config.Config
+	listener   *net.Listener
 	grpcServer *grpc.Server
 	httpServer *http.Server
 	metrics    *grpcprom.ServerMetrics
@@ -151,6 +152,12 @@ func (s *Server) Init() error {
 	s.metrics.InitializeMetrics(s.grpcServer)
 	reflection.Register(s.grpcServer)
 
+	listener, err := s.config.CreateListener()
+	if err != nil {
+		return err
+	}
+	s.listener = &listener
+
 	s.httpServer = &http.Server{
 		Addr:    s.config.HTTPListenAddr(),
 		Handler: s.metricsHandler(),
@@ -175,14 +182,9 @@ func (s *Server) Start(ctx context.Context) error {
 		}
 	}()
 
-	lis, err := net.Listen("tcp", s.config.GRPCListenAddr())
-	if err != nil {
-		return err
-	}
-
 	go func() {
-		s.logger.Info("Starting gRPC server", "addr", lis.Addr())
-		if err := s.grpcServer.Serve(lis); err != nil {
+		s.logger.Info("Starting gRPC server", "addr", (*s.listener).Addr().String())
+		if err := s.grpcServer.Serve(*s.listener); err != nil {
 			errCh <- err
 		}
 	}()

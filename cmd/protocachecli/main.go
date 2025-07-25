@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"time"
 	"unicode/utf8"
 
@@ -31,6 +32,7 @@ import (
 func main() {
 	host := flag.String("host", "localhost", "gRPC server host")
 	port := flag.Int("port", 50051, "gRPC server port")
+	socket := flag.String("socket", "", "Unix socket path (overrides host/port)")
 	flag.Parse()
 	args := flag.Args()
 
@@ -39,14 +41,28 @@ func main() {
 		return
 	}
 
-	target := fmt.Sprintf("%s:%d", *host, *port)
-
-	conn, err := grpc.NewClient(target,
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("failed to connect to %s: %v", target, err)
+	var (
+		conn *grpc.ClientConn
+		err  error
+	)
+	if *socket != "" {
+		conn, err = grpc.NewClient(
+			"unix://"+*socket,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+				return net.Dial("unix", *socket)
+			}),
+		)
+	} else {
+		target := fmt.Sprintf("%s:%d", *host, *port)
+		conn, err = grpc.NewClient(target,
+			grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 	defer conn.Close()
+
+	if err != nil {
+		panic(err)
+	}
 
 	client := pb.NewCacheServiceClient(conn)
 
@@ -118,8 +134,13 @@ func main() {
 
 func usage() {
 	fmt.Println(`Usage:
-  protocachecli [-host localhost] [-port 50051] <command> [args]
+  protocachecli [-host localhost] [-port 50051] [-socket /path/to/socket] <command> [args]
 
+Flags:
+  -host    gRPC TCP hostname (ignored if -socket is set)
+  -port    gRPC TCP port (ignored if -socket is set)
+  -socket  Path to Unix socket (takes priority over host:port)
+  
 Commands:
   set <key> <value>     Set a value
   get <key>             Get a value
