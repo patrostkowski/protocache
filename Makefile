@@ -1,5 +1,5 @@
 BUILD_BIN_DIR=./bin
-
+PWD := $(shell pwd)
 DOCKER_IMAGE_NAME=patrostkowski/protocache
 
 .PHONY: all generate run build-all build build-cli docker-build docker-run test test-e2e bench create-cluster clean
@@ -27,7 +27,10 @@ docker-build:
 	docker build -t ${DOCKER_IMAGE_NAME} .
 
 docker-run:
-	docker run --rm --network="host" --name protocache ${DOCKER_IMAGE_NAME}
+	docker run --rm --network="host" \
+	--name protocache \
+	-v "$(PWD)/example/config.yaml:/etc/protocache/config.yaml:ro,z" \
+	${DOCKER_IMAGE_NAME}
 
 test:
 	go test ./...

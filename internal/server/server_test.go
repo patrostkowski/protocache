@@ -29,6 +29,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func defaultConfig(tmpDir string) *config.Config {
+	return &config.Config{
+		ServerConfig: &config.ServerConfig{
+			ShutdownTimeout: 1 * time.Second,
+		},
+		HTTPServer: &config.HTTPServerConfig{
+			Port: 0,
+		},
+		GRPCListener: &config.GRPCServerListenerConfig{
+			GRPCServerTcpListener: &config.GRPCServerTcpListener{
+				Port: 0,
+			},
+		},
+		StoreConfig: &config.StoreConfig{
+			DumpEnabled:    true,
+			MemoryDumpPath: filepath.Join(tmpDir, "store.gob.gz"),
+		},
+	}
+}
+
 func TestSetAndGet(t *testing.T) {
 	server := testhelpers.NewTestServer(t)
 	ctx := context.Background()
@@ -99,13 +119,7 @@ func TestList(t *testing.T) {
 }
 
 func TestPersistAndReadMemoryStore(t *testing.T) {
-	tmpDir := t.TempDir()
-	dumpPath := filepath.Join(tmpDir, "store.gob.gz")
-	cfg := &config.Config{
-		StoreConfig: config.StoreConfig{
-			MemoryDumpPath: dumpPath,
-		},
-	}
+	cfg := defaultConfig(t.TempDir())
 
 	logger := testhelpers.DefaultLogger()
 
@@ -143,16 +157,12 @@ func TestReadPersistedMemoryStore_FileNotFound(t *testing.T) {
 
 func TestReadPersistedMemoryStore_EmptyFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	dumpPath := filepath.Join(tmpDir, "store.gob.gz")
+	filePath := filepath.Join(tmpDir, "store.gob.gz")
 
-	err := os.WriteFile(dumpPath, []byte{}, 0600)
+	err := os.WriteFile(filePath, []byte{}, 0600)
 	require.NoError(t, err)
 
-	cfg := &config.Config{
-		StoreConfig: config.StoreConfig{
-			MemoryDumpPath: dumpPath,
-		},
-	}
+	cfg := defaultConfig(tmpDir)
 
 	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 	err = s.ReadPersistedMemoryStore()
@@ -160,13 +170,7 @@ func TestReadPersistedMemoryStore_EmptyFile(t *testing.T) {
 }
 
 func TestServerLifecycle_InitAndShutdown(t *testing.T) {
-	cfg := &config.Config{
-		ServerConfig: config.ServerConfig{
-			ShutdownTimeout: 1 * time.Second,
-			HTTPPort:        0,
-			GRPCPort:        0,
-		},
-	}
+	cfg := defaultConfig("/tmp")
 
 	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 
@@ -178,13 +182,7 @@ func TestServerLifecycle_InitAndShutdown(t *testing.T) {
 }
 
 func TestServerStart_CancelContextTriggersShutdown(t *testing.T) {
-	cfg := &config.Config{
-		ServerConfig: config.ServerConfig{
-			ShutdownTimeout: 1 * time.Second,
-			HTTPPort:        0,
-			GRPCPort:        0,
-		},
-	}
+	cfg := defaultConfig(t.TempDir())
 
 	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 	require.NoError(t, s.Init())
@@ -227,15 +225,7 @@ func TestServerInit_ReadPersistedMemoryStoreFails(t *testing.T) {
 	// Write corrupted file
 	require.NoError(t, os.WriteFile(dumpPath, []byte("not a valid gob"), 0600))
 
-	cfg := &config.Config{
-		StoreConfig: config.StoreConfig{
-			DumpEnabled:    true,
-			MemoryDumpPath: dumpPath,
-		},
-		ServerConfig: config.ServerConfig{
-			ShutdownTimeout: 1 * time.Second,
-		},
-	}
+	cfg := defaultConfig(dumpPath)
 
 	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 	err := s.Init()

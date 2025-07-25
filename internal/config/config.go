@@ -29,6 +29,7 @@ const (
 	GRPCPort              = 50051
 	HTTPPort              = 9091
 	ListenAddr            = "0.0.0.0"
+	UnixSocketPath        = "/var/run/protocache/protocache.sock"
 	ServerShutdownTimeout = 30 * time.Second
 	GracefulTimeout       = 10 * time.Second
 	MemoryDumpPath        = "/var/lib/protocache/"
@@ -48,10 +49,40 @@ var configFileFullPath = func() string {
 	return filepath.Join(ConfigFilePath, ConfigFileName)
 }
 
+type Config struct {
+	GRPCListener *GRPCServerListenerConfig `yaml:"grpc_listener"`
+	HTTPServer   *HTTPServerConfig         `yaml:"http_server"`
+	ServerConfig *ServerConfig             `yaml:"server"`
+	StoreConfig  *StoreConfig              `yaml:"store"`
+}
+
+type GRPCServerListenerType int
+
+const (
+	UNIX GRPCServerListenerType = iota
+	TCP
+)
+
+type GRPCServerListenerConfig struct {
+	*GRPCServerUnixListener `yaml:",inline"`
+	*GRPCServerTcpListener  `yaml:",inline"`
+}
+
+type GRPCServerUnixListener struct {
+	SocketPath string `yaml:"socket_path"`
+}
+
+type GRPCServerTcpListener struct {
+	Address string `yaml:"address"` // ":50051" or "/tmp/protocache.sock"
+	Port    int    `yaml:"port"`
+}
+
+type HTTPServerConfig struct {
+	Address string `yaml:"address"` // e.g., "0.0.0.0:9091"
+	Port    int    `yaml:"port"`
+}
+
 type ServerConfig struct {
-	GRPCPort        int           `yaml:"grpc_port"`
-	HTTPPort        int           `yaml:"http_port"`
-	ListenAddr      string        `yaml:"listen_addr"`
 	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
 	GracefulTimeout time.Duration `yaml:"graceful_timeout"`
 }
@@ -62,21 +93,19 @@ type StoreConfig struct {
 	MemoryDumpFileName string `yaml:"memory_dump_file_name"`
 }
 
-type Config struct {
-	ServerConfig `yaml:"server"`
-	StoreConfig  `yaml:"store"`
-}
-
 func DefaultConfig() *Config {
 	return &Config{
-		ServerConfig: ServerConfig{
-			GRPCPort:        GRPCPort,
-			HTTPPort:        HTTPPort,
-			ListenAddr:      ListenAddr,
-			ShutdownTimeout: ServerShutdownTimeout,
-			GracefulTimeout: GracefulTimeout,
+		GRPCListener: &GRPCServerListenerConfig{
+			GRPCServerTcpListener: &GRPCServerTcpListener{
+				Address: ListenAddr,
+				Port:    GRPCPort,
+			},
 		},
-		StoreConfig: StoreConfig{
+		HTTPServer: &HTTPServerConfig{
+			Address: ListenAddr,
+			Port:    HTTPPort,
+		},
+		StoreConfig: &StoreConfig{
 			DumpEnabled:        false,
 			MemoryDumpPath:     MemoryDumpPath,
 			MemoryDumpFileName: MemoryDumpFileName,
@@ -84,16 +113,23 @@ func DefaultConfig() *Config {
 	}
 }
 
+func (c *Config) GRPCListenerType() GRPCServerListenerType {
+	if c.GRPCListener.GRPCServerUnixListener != nil && c.GRPCListener.GRPCServerUnixListener.SocketPath != "" {
+		return UNIX
+	}
+	return TCP
+}
+
 func (c *Config) MemoryDumpFileFullPath() string {
 	return filepath.Join(c.StoreConfig.MemoryDumpPath, c.StoreConfig.MemoryDumpFileName)
 }
 
 func (c *Config) HTTPListenAddr() string {
-	return net.JoinHostPort(c.ServerConfig.ListenAddr, strconv.Itoa(c.ServerConfig.HTTPPort))
+	return net.JoinHostPort(c.HTTPServer.Address, strconv.Itoa(c.HTTPServer.Port))
 }
 
 func (c *Config) GRPCListenAddr() string {
-	return net.JoinHostPort(c.ServerConfig.ListenAddr, strconv.Itoa(c.ServerConfig.GRPCPort))
+	return net.JoinHostPort(c.GRPCListener.GRPCServerTcpListener.Address, strconv.Itoa(c.GRPCListener.GRPCServerTcpListener.Port))
 }
 
 func (c *Config) IsMemoryStoreDumpEnabled() bool {
@@ -101,13 +137,88 @@ func (c *Config) IsMemoryStoreDumpEnabled() bool {
 }
 
 func LoadConfig() (*Config, error) {
-	cfg := DefaultConfig() // ← use defaults
 	data, err := os.ReadFile(configFileFullPath())
 	if err != nil {
 		return nil, err
 	}
+
+	cfg := &Config{}
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, err
 	}
+
+	// Apply default fallbacks manually
+	defaults := DefaultConfig()
+
+	// Fill missing nested structs
+	if cfg.GRPCListener == nil {
+		cfg.GRPCListener = defaults.GRPCListener
+	}
+	if cfg.HTTPServer == nil {
+		cfg.HTTPServer = defaults.HTTPServer
+	}
+	if cfg.StoreConfig == nil {
+		cfg.StoreConfig = defaults.StoreConfig
+	}
+
+	// Fill TCP listener defaults if not overridden
+	if cfg.GRPCListener.GRPCServerTcpListener == nil && defaults.GRPCListener.GRPCServerTcpListener != nil {
+		cfg.GRPCListener.GRPCServerTcpListener = defaults.GRPCListener.GRPCServerTcpListener
+	}
+
+	// Fill Unix listener if provided via defaults (only needed if you set it by default)
+	if cfg.GRPCListener.GRPCServerUnixListener == nil && defaults.GRPCListener.GRPCServerUnixListener != nil {
+		cfg.GRPCListener.GRPCServerUnixListener = defaults.GRPCListener.GRPCServerUnixListener
+	}
+
+	// Fill HTTP port/address if missing
+	if cfg.HTTPServer.Address == "" {
+		cfg.HTTPServer.Address = defaults.HTTPServer.Address
+	}
+	if cfg.HTTPServer.Port == 0 {
+		cfg.HTTPServer.Port = defaults.HTTPServer.Port
+	}
+
+	// Same for Store
+	if cfg.StoreConfig.MemoryDumpPath == "" {
+		cfg.StoreConfig.MemoryDumpPath = defaults.StoreConfig.MemoryDumpPath
+	}
+	if cfg.StoreConfig.MemoryDumpFileName == "" {
+		cfg.StoreConfig.MemoryDumpFileName = defaults.StoreConfig.MemoryDumpFileName
+	}
+
 	return cfg, nil
+}
+
+func (c *Config) CreateListener() (net.Listener, error) {
+	if c.GRPCListener == nil {
+		return nil, fmt.Errorf("GRPCListener config is nil")
+	}
+
+	if c.GRPCListener.GRPCServerUnixListener != nil {
+		socketPath := c.GRPCListener.GRPCServerUnixListener.SocketPath
+		if socketPath == "" {
+			return nil, fmt.Errorf("unix socket path is empty")
+		}
+
+		dir := filepath.Dir(socketPath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create socket directory: %w", err)
+		}
+
+		if _, err := os.Stat(socketPath); err == nil {
+			if err := os.Remove(socketPath); err != nil {
+				return nil, fmt.Errorf("failed to remove existing unix socket file: %w", err)
+			}
+		}
+
+		return net.Listen("unix", socketPath)
+	}
+
+	return net.Listen(
+		"tcp",
+		fmt.Sprintf("%s:%d",
+			c.GRPCListener.GRPCServerTcpListener.Address,
+			c.GRPCListener.GRPCServerTcpListener.Port,
+		))
 }
