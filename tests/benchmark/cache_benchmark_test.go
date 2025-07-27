@@ -32,7 +32,9 @@ func BenchmarkSet(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		key := "key" + strconv.Itoa(i)
-		server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")})
+		if _, err := server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")}); err != nil {
+			b.Fatalf("Set failed: %v", err)
+		}
 	}
 }
 
@@ -43,11 +45,15 @@ func BenchmarkGet(b *testing.B) {
 
 	// Preload a key
 	key := "benchmark_key"
-	server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")})
+	if _, err := server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")}); err != nil {
+		b.Fatalf("Set failed: %v", err)
+	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		server.Get(ctx, &pb.GetRequest{Key: key})
+		if _, err := server.Get(ctx, &pb.GetRequest{Key: key}); err != nil {
+			b.Fatalf("Set failed: %v", err)
+		}
 	}
 }
 
@@ -58,8 +64,12 @@ func BenchmarkDelete(b *testing.B) {
 
 	key := "key_to_delete"
 	for i := 0; i < b.N; i++ {
-		server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")})
-		server.Delete(ctx, &pb.DeleteRequest{Key: key})
+		if _, err := server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")}); err != nil {
+			b.Fatalf("Set failed: %v", err)
+		}
+		if _, err := server.Delete(ctx, &pb.DeleteRequest{Key: key}); err != nil {
+			b.Fatalf("Set failed: %v", err)
+		}
 	}
 }
 
@@ -68,12 +78,16 @@ func BenchmarkGetParallel(b *testing.B) {
 	server := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 	ctx := context.Background()
 	key := "hot"
-	server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("hit")})
+	if _, err := server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("hit")}); err != nil {
+		b.Fatalf("Set failed: %v", err)
+	}
 
 	b.ResetTimer()
 	b.RunParallel(func(p *testing.PB) {
 		for p.Next() {
-			server.Get(ctx, &pb.GetRequest{Key: key})
+			if _, err := server.Get(ctx, &pb.GetRequest{Key: key}); err != nil {
+				b.Fatalf("Set failed: %v", err)
+			}
 		}
 	})
 }
@@ -86,11 +100,15 @@ func BenchmarkList(b *testing.B) {
 	// Preload some keys
 	for i := 0; i < 1000; i++ {
 		key := "key" + strconv.Itoa(i)
-		server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")})
+		if _, err := server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")}); err != nil {
+			b.Fatalf("Set failed: %v", err)
+		}
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		server.List(ctx, &pb.ListRequest{})
+		if _, err := server.List(ctx, &pb.ListRequest{}); err != nil {
+			b.Fatalf("Set failed: %v", err)
+		}
 	}
 }
