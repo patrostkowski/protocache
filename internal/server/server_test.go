@@ -16,6 +16,12 @@ package server_test
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
@@ -157,6 +163,115 @@ func TestServerInit_ReadPersistedMemoryStoreFails(t *testing.T) {
 	require.NoError(t, os.WriteFile(dumpPath, []byte("not a valid gob"), 0o600))
 
 	cfg := defaultConfig(dumpPath)
+
+	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	err := s.Init()
+	assert.Error(t, err)
+}
+
+func generateTestCertAndKey(certPath, keyPath string) error {
+	// Generate private key
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return err
+	}
+
+	// Create certificate template
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "localhost",
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	// Create cert
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return err
+	}
+
+	// Write cert
+	certOut, err := os.Create(certPath)
+	if err != nil {
+		return err
+	}
+	defer certOut.Close()
+	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER}); err != nil {
+		return err
+	}
+
+	// Write key
+	keyOut, err := os.Create(keyPath)
+	if err != nil {
+		return err
+	}
+	defer keyOut.Close()
+	privBytes := x509.MarshalPKCS1PrivateKey(priv)
+	if err := pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: privBytes}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func TestGRPCServerFailsWithInvalidTLS(t *testing.T) {
+	cfg := defaultConfig(t.TempDir())
+	cfg.TLSConfig = &config.TLSConfig{
+		Enabled:  true,
+		CertFile: "/invalid/cert.pem",
+		KeyFile:  "/invalid/key.pem",
+	}
+
+	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	err := s.Init()
+	assert.ErrorContains(t, err, "failed to load TLS credentials")
+}
+
+func TestHTTPServerTLS_StartsTLS(t *testing.T) {
+	tmpDir := t.TempDir()
+	certPath := filepath.Join(tmpDir, "cert.pem")
+	keyPath := filepath.Join(tmpDir, "key.pem")
+
+	err := generateTestCertAndKey(certPath, keyPath)
+	require.NoError(t, err)
+
+	cfg := defaultConfig(tmpDir)
+	cfg.TLSConfig = &config.TLSConfig{
+		Enabled:  true,
+		CertFile: certPath,
+		KeyFile:  keyPath,
+	}
+
+	cfg.HTTPServer.Port = 0
+
+	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	require.NoError(t, s.Init())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		_ = s.Start(ctx)
+	}()
+
+	time.Sleep(200 * time.Millisecond) // give server time to start
+	cancel()
+
+	// Let shutdown finish
+	time.Sleep(200 * time.Millisecond)
+}
+
+func TestServerInit_ListenerCreationFails(t *testing.T) {
+	cfg := defaultConfig("/root") // assuming no permission
+
+	// Invalid address/port
+	cfg.GRPCListener.Address = ""
+	cfg.GRPCListener.Port = -1
 
 	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 	err := s.Init()

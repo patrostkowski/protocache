@@ -9,6 +9,11 @@ http_server:
   address: 0.0.0.0
   port: 9091
 
+tls:
+  enabled: true
+  cert_file: /etc/protocache/cert.pem
+  key_file: /etc/protocache/key.pem
+
 server:
   shutdown_timeout: 30s
   graceful_timeout: 10s
