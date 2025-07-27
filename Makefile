@@ -32,6 +32,14 @@ docker-run:
 	-v "$(PWD)/example/config.yaml:/etc/protocache/config.yaml:ro,z" \
 	${DOCKER_IMAGE_NAME}
 
+lint-verify:
+	golangci-lint config verify
+
+lint:
+	golangci-lint run
+
+check: lint-verify lint test
+
 test:
 	go test ./...
 

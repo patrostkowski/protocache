@@ -84,8 +84,9 @@ func (s *Server) Init() error {
 	s.listener = &listener
 
 	s.httpServer = &http.Server{
-		Addr:    s.config.HTTPListenAddr(),
-		Handler: s.metricsHandler(),
+		Addr:              s.config.HTTPListenAddr(),
+		Handler:           s.metricsHandler(),
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	if s.config.IsMemoryStoreDumpEnabled() {
