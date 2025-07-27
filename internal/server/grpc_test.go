@@ -29,7 +29,9 @@ func TestDelete(t *testing.T) {
 	server := testhelpers.NewTestServer(t)
 	ctx := context.Background()
 
-	server.Set(ctx, &pb.SetRequest{Key: "foo", Value: []byte("bar")})
+	if _, err := server.Set(ctx, &pb.SetRequest{Key: "foo", Value: []byte("bar")}); err != nil {
+		t.Fatal(err)
+	}
 
 	_, err := server.Delete(ctx, &pb.DeleteRequest{Key: "foo"})
 	assert.NoError(t, err)
@@ -42,8 +44,12 @@ func TestClear(t *testing.T) {
 	server := testhelpers.NewTestServer(t)
 	ctx := context.Background()
 
-	server.Set(ctx, &pb.SetRequest{Key: "a", Value: []byte("1")})
-	server.Set(ctx, &pb.SetRequest{Key: "b", Value: []byte("2")})
+	if _, err := server.Set(ctx, &pb.SetRequest{Key: "a", Value: []byte("1")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := server.Set(ctx, &pb.SetRequest{Key: "b", Value: []byte("2")}); err != nil {
+		t.Fatal(err)
+	}
 
 	_, err := server.Clear(ctx, &pb.ClearRequest{})
 	assert.NoError(t, err)
@@ -58,15 +64,21 @@ func TestList(t *testing.T) {
 	server := testhelpers.NewTestServer(t)
 	ctx := context.Background()
 
-	server.Set(ctx, &pb.SetRequest{Key: "a", Value: []byte("1")})
-	server.Set(ctx, &pb.SetRequest{Key: "b", Value: []byte("2")})
+	if _, err := server.Set(ctx, &pb.SetRequest{Key: "a", Value: []byte("1")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := server.Set(ctx, &pb.SetRequest{Key: "b", Value: []byte("2")}); err != nil {
+		t.Fatal(err)
+	}
 
 	resp, err := server.List(ctx, &pb.ListRequest{})
 	assert.NoError(t, err)
 	assert.Contains(t, resp.Keys, "a")
 	assert.Contains(t, resp.Keys, "b")
 
-	server.Set(ctx, &pb.SetRequest{Key: "c", Value: []byte("3")})
+	if _, err := server.Set(ctx, &pb.SetRequest{Key: "c", Value: []byte("3")}); err != nil {
+		t.Fatal(err)
+	}
 	resp, err = server.List(ctx, &pb.ListRequest{})
 	assert.NoError(t, err)
 	assert.Contains(t, resp.Keys, "c")
