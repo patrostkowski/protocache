@@ -25,6 +25,8 @@ import (
 	"github.com/patrostkowski/protocache/internal/store"
 	"github.com/patrostkowski/protocache/internal/store/mapstore"
 	"github.com/patrostkowski/protocache/internal/store/syncmapstore"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"gopkg.in/yaml.v3"
 )
 
@@ -57,6 +59,7 @@ type Config struct {
 	HTTPServer   *HTTPServerConfig         `yaml:"http_server"`
 	ServerConfig *ServerConfig             `yaml:"server"`
 	StoreConfig  *StoreConfig              `yaml:"store"`
+	TLSConfig    *TLSConfig                `yaml:"tls"`
 }
 
 type GRPCServerListenerType int
@@ -104,6 +107,12 @@ type StoreConfig struct {
 	MemoryDumpFileName string      `yaml:"memory_dump_file_name"`
 }
 
+type TLSConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	CertFile string `yaml:"cert_file"`
+	KeyFile  string `yaml:"key_file"`
+}
+
 func DefaultConfig() *Config {
 	return &Config{
 		GRPCListener: &GRPCServerListenerConfig{
@@ -121,6 +130,9 @@ func DefaultConfig() *Config {
 			DumpEnabled:        false,
 			MemoryDumpPath:     MemoryDumpPath,
 			MemoryDumpFileName: MemoryDumpFileName,
+		},
+		TLSConfig: &TLSConfig{
+			Enabled: false,
 		},
 	}
 }
@@ -233,6 +245,19 @@ func (c *Config) CreateListener() (net.Listener, error) {
 			c.GRPCListener.Address,
 			c.GRPCListener.Port,
 		))
+}
+
+func (c *Config) CreateTLS() (grpc.ServerOption, error) {
+	if c.TLSConfig == nil || !c.TLSConfig.Enabled {
+		return nil, nil
+	}
+
+	creds, err := credentials.NewServerTLSFromFile(c.TLSConfig.CertFile, c.TLSConfig.KeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load TLS credentials: %w", err)
+	}
+
+	return grpc.Creds(creds), nil
 }
 
 func (c *Config) NewStore() (store.Store, error) {

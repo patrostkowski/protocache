@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"flag"
 	"fmt"
@@ -26,6 +27,7 @@ import (
 
 	pb "github.com/patrostkowski/protocache/api/pb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -33,6 +35,8 @@ func main() {
 	host := flag.String("host", "localhost", "gRPC server host")
 	port := flag.Int("port", 50051, "gRPC server port")
 	socket := flag.String("socket", "", "Unix socket path (overrides host/port)")
+	cert := flag.String("cert", "", "TLS client certificate file (enables TLS if set)")
+	key := flag.String("key", "", "TLS client key file (requires --cert)")
 	flag.Parse()
 	args := flag.Args()
 
@@ -43,21 +47,34 @@ func main() {
 
 	var (
 		conn *grpc.ClientConn
+		opts []grpc.DialOption
 		err  error
 	)
+
+	if *cert != "" && *key != "" {
+		certificate, err := tls.LoadX509KeyPair(*cert, *key)
+		checkErr(err)
+
+		tlsConfig := &tls.Config{
+			Certificates:       []tls.Certificate{certificate},
+			InsecureSkipVerify: true, // #nosec G402
+		}
+
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	} else {
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
+
 	if *socket != "" {
-		conn, err = grpc.NewClient(
-			"unix://"+*socket,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-				return net.Dial("unix", *socket)
-			}),
-		)
+		opts = append(opts, grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return net.Dial("unix", *socket)
+		}))
+		conn, err = grpc.NewClient("unix://"+*socket, opts...)
 	} else {
 		target := fmt.Sprintf("%s:%d", *host, *port)
-		conn, err = grpc.NewClient(target,
-			grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err = grpc.NewClient(target, opts...)
 	}
+
 	defer conn.Close()
 
 	if err != nil {
@@ -140,6 +157,8 @@ Flags:
   -host    gRPC TCP hostname (ignored if -socket is set)
   -port    gRPC TCP port (ignored if -socket is set)
   -socket  Path to Unix socket (takes priority over host:port)
+  -cert    TLS client certificate file (optional, enables TLS if set)
+  -key     TLS client key file (required if --cert is set)
   
 Commands:
   set <key> <value>     Set a value

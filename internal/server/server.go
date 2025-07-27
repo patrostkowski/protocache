@@ -63,13 +63,16 @@ func NewServer(logger *slog.Logger, config *config.Config, reg prometheus.Regist
 	}
 }
 
-func (s *Server) Init() error {
-	s.metrics = grpcprom.NewServerMetrics()
-	if err := s.registry.Register(s.metrics); err != nil {
+func (s *Server) initGRPCServer() error {
+	opts := []grpc.ServerOption{}
+
+	if tlsOpt, err := s.config.CreateTLS(); err != nil {
 		return err
+	} else if tlsOpt != nil {
+		opts = append(opts, tlsOpt)
 	}
 
-	s.grpcServer = grpc.NewServer(
+	opts = append(opts,
 		grpc.ChainUnaryInterceptor(
 			s.metrics.UnaryServerInterceptor(),
 			LoggingUnaryInterceptor(s.logger),
@@ -77,6 +80,7 @@ func (s *Server) Init() error {
 		grpc.ConnectionTimeout(s.config.ServerConfig.ShutdownTimeout),
 	)
 
+	s.grpcServer = grpc.NewServer(opts...)
 	pb.RegisterCacheServiceServer(s.grpcServer, s)
 	s.metrics.InitializeMetrics(s.grpcServer)
 	reflection.Register(s.grpcServer)
@@ -87,10 +91,30 @@ func (s *Server) Init() error {
 	}
 	s.listener = &listener
 
+	return nil
+}
+
+func (s *Server) initHTTPServer() error {
 	s.httpServer = &http.Server{
 		Addr:              s.config.HTTPListenAddr(),
 		Handler:           s.metricsHandler(),
 		ReadHeaderTimeout: 10 * time.Second,
+	}
+	return nil
+}
+
+func (s *Server) Init() error {
+	s.metrics = grpcprom.NewServerMetrics()
+	if err := s.registry.Register(s.metrics); err != nil {
+		return err
+	}
+
+	if err := s.initGRPCServer(); err != nil {
+		return err
+	}
+
+	if err := s.initHTTPServer(); err != nil {
+		return err
 	}
 
 	store, err := s.config.NewStore()
@@ -108,21 +132,35 @@ func (s *Server) Init() error {
 	return nil
 }
 
+func (s *Server) startGRPCServer() error {
+	addr := (*s.listener).Addr().String()
+	s.logger.Info("Starting gRPC server", "addr", addr)
+	return s.grpcServer.Serve(*s.listener)
+}
+
+func (s *Server) startHTTPServer() error {
+	addr := s.httpServer.Addr
+	s.logger.Info("Starting HTTP server", "addr", addr)
+
+	if s.config.TLSConfig != nil && s.config.TLSConfig.Enabled {
+		return s.httpServer.ListenAndServeTLS(
+			s.config.TLSConfig.CertFile,
+			s.config.TLSConfig.KeyFile,
+		)
+	}
+
+	return s.httpServer.ListenAndServe()
+}
+
 func (s *Server) Start(ctx context.Context) error {
 	errCh := make(chan error, 2)
 
 	go func() {
-		s.logger.Info("Starting HTTP server", "addr", s.httpServer.Addr)
-		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errCh <- err
-		}
+		errCh <- s.startHTTPServer()
 	}()
 
 	go func() {
-		s.logger.Info("Starting gRPC server", "addr", (*s.listener).Addr().String())
-		if err := s.grpcServer.Serve(*s.listener); err != nil {
-			errCh <- err
-		}
+		errCh <- s.startGRPCServer()
 	}()
 
 	select {
