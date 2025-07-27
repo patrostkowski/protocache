@@ -22,6 +22,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/patrostkowski/protocache/internal/store"
+	"github.com/patrostkowski/protocache/internal/store/mapstore"
+	"github.com/patrostkowski/protocache/internal/store/syncmapstore"
 	"gopkg.in/yaml.v3"
 )
 
@@ -87,10 +90,18 @@ type ServerConfig struct {
 	GracefulTimeout time.Duration `yaml:"graceful_timeout"`
 }
 
+type StoreEngine string
+
+const (
+	MapStoreEngine     StoreEngine = "map"
+	SyncMapStoreEngine StoreEngine = "syncmap"
+)
+
 type StoreConfig struct {
-	DumpEnabled        bool   `yaml:"dump_enabled"`
-	MemoryDumpPath     string `yaml:"memory_dump_path"`
-	MemoryDumpFileName string `yaml:"memory_dump_file_name"`
+	Engine             StoreEngine `yaml:"engine"`
+	DumpEnabled        bool        `yaml:"dump_enabled"`
+	MemoryDumpPath     string      `yaml:"memory_dump_path"`
+	MemoryDumpFileName string      `yaml:"memory_dump_file_name"`
 }
 
 func DefaultConfig() *Config {
@@ -106,6 +117,7 @@ func DefaultConfig() *Config {
 			Port:    HTTPPort,
 		},
 		StoreConfig: &StoreConfig{
+			Engine:             MapStoreEngine,
 			DumpEnabled:        false,
 			MemoryDumpPath:     MemoryDumpPath,
 			MemoryDumpFileName: MemoryDumpFileName,
@@ -221,4 +233,13 @@ func (c *Config) CreateListener() (net.Listener, error) {
 			c.GRPCListener.Address,
 			c.GRPCListener.Port,
 		))
+}
+
+func (c *Config) NewStore() (store.Store, error) {
+	switch c.StoreConfig.Engine {
+	case SyncMapStoreEngine:
+		return syncmapstore.NewSyncMapStore(), nil
+	default:
+		return mapstore.NewMapStore(), nil
+	}
 }

@@ -1,0 +1,23 @@
+package syncmapstore_test
+
+import (
+	"testing"
+
+	"github.com/patrostkowski/protocache/internal/store"
+	"github.com/patrostkowski/protocache/internal/store/syncmapstore"
+)
+
+func BenchmarkSyncMapStore(b *testing.B) {
+	store.RunBenchmarkSet(b, "SyncMapStore", func() store.Store {
+		return syncmapstore.NewSyncMapStore()
+	})
+	store.RunBenchmarkGet(b, "SyncMapStore", func() store.Store {
+		return syncmapstore.NewSyncMapStore()
+	})
+	store.RunBenchmarkDelete(b, "SyncMapStore", func() store.Store {
+		return syncmapstore.NewSyncMapStore()
+	})
+	store.RunBenchmarkConcurrentSetAndGet(b, "SyncMapStore", func() store.Store {
+		return syncmapstore.NewSyncMapStore()
+	})
+}
