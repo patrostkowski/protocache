@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server_test
+package server
 
 import (
 	"context"
@@ -29,8 +29,6 @@ import (
 
 	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
-	"github.com/patrostkowski/protocache/internal/server"
-	testhelpers "github.com/patrostkowski/protocache/internal/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -58,9 +56,9 @@ func defaultConfig(tmpDir string) *config.Config {
 func TestPersistAndReadMemoryStore(t *testing.T) {
 	cfg := defaultConfig(t.TempDir())
 
-	logger := testhelpers.DefaultLogger()
+	logger := DefaultLogger()
 
-	s1 := server.NewServer(logger, cfg, testhelpers.DefaultPrometheusRegistry())
+	s1 := NewServer(logger, cfg, DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	_, err := s1.Set(ctx, &cachev1alpha.SetRequest{Key: "foo", Value: []byte("bar")})
@@ -72,7 +70,7 @@ func TestPersistAndReadMemoryStore(t *testing.T) {
 	err = s1.PersistMemoryStore()
 	require.NoError(t, err)
 
-	s2 := server.NewServer(logger, cfg, testhelpers.DefaultPrometheusRegistry())
+	s2 := NewServer(logger, cfg, DefaultPrometheusRegistry())
 	err = s2.ReadPersistedMemoryStore()
 	require.NoError(t, err)
 
@@ -86,7 +84,7 @@ func TestPersistAndReadMemoryStore(t *testing.T) {
 }
 
 func TestReadPersistedMemoryStore_FileNotFound(t *testing.T) {
-	s := testhelpers.NewTestServer(t)
+	s := NewTestServer(t)
 
 	err := s.ReadPersistedMemoryStore()
 	assert.NoError(t, err)
@@ -101,7 +99,7 @@ func TestReadPersistedMemoryStore_EmptyFile(t *testing.T) {
 
 	cfg := defaultConfig(tmpDir)
 
-	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
 	err = s.ReadPersistedMemoryStore()
 	assert.NoError(t, err)
 }
@@ -109,7 +107,7 @@ func TestReadPersistedMemoryStore_EmptyFile(t *testing.T) {
 func TestServerLifecycle_InitAndShutdown(t *testing.T) {
 	cfg := defaultConfig("/tmp")
 
-	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
 
 	err := s.Init()
 	assert.NoError(t, err)
@@ -121,7 +119,7 @@ func TestServerLifecycle_InitAndShutdown(t *testing.T) {
 func TestServerStart_CancelContextTriggersShutdown(t *testing.T) {
 	cfg := defaultConfig(t.TempDir())
 
-	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
 	require.NoError(t, s.Init())
 
 	t.Cleanup(func() {
@@ -164,7 +162,7 @@ func TestServerInit_ReadPersistedMemoryStoreFails(t *testing.T) {
 
 	cfg := defaultConfig(dumpPath)
 
-	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
 	err := s.Init()
 	assert.Error(t, err)
 }
@@ -227,7 +225,7 @@ func TestGRPCServerFailsWithInvalidTLS(t *testing.T) {
 		KeyFile:  "/invalid/key.pem",
 	}
 
-	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
 	err := s.Init()
 	assert.ErrorContains(t, err, "failed to load TLS credentials")
 }
@@ -249,7 +247,7 @@ func TestHTTPServerTLS_StartsTLS(t *testing.T) {
 
 	cfg.HTTPServer.Port = 0
 
-	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
 	require.NoError(t, s.Init())
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -273,7 +271,7 @@ func TestServerInit_ListenerCreationFails(t *testing.T) {
 	cfg.GRPCListener.Address = ""
 	cfg.GRPCListener.Port = -1
 
-	s := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
 	err := s.Init()
 	assert.Error(t, err)
 }
