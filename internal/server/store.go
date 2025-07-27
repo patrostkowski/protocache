@@ -39,7 +39,7 @@ func decodeAndDecompress(r io.Reader, store *map[string][]byte) error {
 }
 
 func openStoreFileForWrite(path string) (io.WriteCloser, error) {
-	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 }
 
 func openStoreFileForRead(path string) (io.ReadCloser, error) {
@@ -61,7 +61,7 @@ func openStoreFileForRead(path string) (io.ReadCloser, error) {
 
 func (s *Server) PersistMemoryStore() error {
 	path := s.config.MemoryDumpFileFullPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		s.logger.Error("Failed to create directory for memory store dump", "error", err.Error())
 		return err
 	}

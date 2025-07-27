@@ -90,7 +90,7 @@ func TestReadPersistedMemoryStore_EmptyFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "store.gob.gz")
 
-	err := os.WriteFile(filePath, []byte{}, 0600)
+	err := os.WriteFile(filePath, []byte{}, 0o600)
 	require.NoError(t, err)
 
 	cfg := defaultConfig(tmpDir)
@@ -154,7 +154,7 @@ func TestServerInit_ReadPersistedMemoryStoreFails(t *testing.T) {
 	dumpPath := filepath.Join(tmpDir, "bad-store.gob.gz")
 
 	// Write corrupted file
-	require.NoError(t, os.WriteFile(dumpPath, []byte("not a valid gob"), 0600))
+	require.NoError(t, os.WriteFile(dumpPath, []byte("not a valid gob"), 0o600))
 
 	cfg := defaultConfig(dumpPath)
 

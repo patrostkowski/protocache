@@ -114,7 +114,7 @@ func DefaultConfig() *Config {
 }
 
 func (c *Config) GRPCListenerType() GRPCServerListenerType {
-	if c.GRPCListener.GRPCServerUnixListener != nil && c.GRPCListener.GRPCServerUnixListener.SocketPath != "" {
+	if c.GRPCListener.SocketPath != "" {
 		return UNIX
 	}
 	return TCP
@@ -129,7 +129,7 @@ func (c *Config) HTTPListenAddr() string {
 }
 
 func (c *Config) GRPCListenAddr() string {
-	return net.JoinHostPort(c.GRPCListener.GRPCServerTcpListener.Address, strconv.Itoa(c.GRPCListener.GRPCServerTcpListener.Port))
+	return net.JoinHostPort(c.GRPCListener.Address, strconv.Itoa(c.GRPCListener.Port))
 }
 
 func (c *Config) IsMemoryStoreDumpEnabled() bool {
@@ -196,13 +196,13 @@ func (c *Config) CreateListener() (net.Listener, error) {
 	}
 
 	if c.GRPCListener.GRPCServerUnixListener != nil {
-		socketPath := c.GRPCListener.GRPCServerUnixListener.SocketPath
+		socketPath := c.GRPCListener.SocketPath
 		if socketPath == "" {
 			return nil, fmt.Errorf("unix socket path is empty")
 		}
 
 		dir := filepath.Dir(socketPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create socket directory: %w", err)
 		}
 
@@ -218,7 +218,7 @@ func (c *Config) CreateListener() (net.Listener, error) {
 	return net.Listen(
 		"tcp",
 		fmt.Sprintf("%s:%d",
-			c.GRPCListener.GRPCServerTcpListener.Address,
-			c.GRPCListener.GRPCServerTcpListener.Port,
+			c.GRPCListener.Address,
+			c.GRPCListener.Port,
 		))
 }

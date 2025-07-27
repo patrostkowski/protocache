@@ -25,7 +25,6 @@ func (s *Server) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, 
 
 func (s *Server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
 	val, err := s.store.Get(req.Key)
-
 	if err != nil {
 		if errors.Is(err, store.StoreErrorKeyNotFound) {
 			CacheMisses.Inc()

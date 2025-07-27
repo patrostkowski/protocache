@@ -15,8 +15,8 @@ func TestDefaultConfig(t *testing.T) {
 	// GRPC TCP listener default
 	assert.NotNil(t, cfg.GRPCListener)
 	assert.NotNil(t, cfg.GRPCListener.GRPCServerTcpListener)
-	assert.Equal(t, 50051, cfg.GRPCListener.GRPCServerTcpListener.Port)
-	assert.Equal(t, "0.0.0.0", cfg.GRPCListener.GRPCServerTcpListener.Address)
+	assert.Equal(t, 50051, cfg.GRPCListener.Port)
+	assert.Equal(t, "0.0.0.0", cfg.GRPCListener.Address)
 
 	// HTTP server default
 	assert.NotNil(t, cfg.HTTPServer)
@@ -61,7 +61,7 @@ store:
   memory_dump_file_name: "dump.gob.gz"
 `
 
-	err := os.WriteFile(yamlPath, []byte(yaml), 0600)
+	err := os.WriteFile(yamlPath, []byte(yaml), 0o600)
 	require.NoError(t, err)
 
 	originalPath := configFileFullPath
@@ -71,8 +71,8 @@ store:
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
 
-	assert.Equal(t, "127.0.0.1", cfg.GRPCListener.GRPCServerTcpListener.Address)
-	assert.Equal(t, 1234, cfg.GRPCListener.GRPCServerTcpListener.Port)
+	assert.Equal(t, "127.0.0.1", cfg.GRPCListener.Address)
+	assert.Equal(t, 1234, cfg.GRPCListener.Port)
 
 	assert.Equal(t, "127.0.0.1", cfg.HTTPServer.Address)
 	assert.Equal(t, 5678, cfg.HTTPServer.Port)
@@ -95,7 +95,7 @@ http_server:
   port: 8080
 `
 
-	err := os.WriteFile(yamlPath, []byte(yaml), 0600)
+	err := os.WriteFile(yamlPath, []byte(yaml), 0o600)
 	require.NoError(t, err)
 
 	originalPath := configFileFullPath
@@ -105,7 +105,7 @@ http_server:
 	cfg, err := LoadConfig()
 	require.NoError(t, err)
 
-	assert.Equal(t, "/tmp/grpc.sock", cfg.GRPCListener.GRPCServerUnixListener.SocketPath)
+	assert.Equal(t, "/tmp/grpc.sock", cfg.GRPCListener.SocketPath)
 	assert.Equal(t, "localhost", cfg.HTTPServer.Address)
 	assert.Equal(t, 8080, cfg.HTTPServer.Port)
 }
@@ -134,7 +134,7 @@ store:
   dump_enabled: true
 `
 
-	err := os.WriteFile(yamlPath, []byte(yaml), 0600)
+	err := os.WriteFile(yamlPath, []byte(yaml), 0o600)
 	require.NoError(t, err)
 
 	originalPath := configFileFullPath
@@ -145,8 +145,8 @@ store:
 	require.NoError(t, err)
 
 	// GRPC
-	assert.Equal(t, "localhost", cfg.GRPCListener.GRPCServerTcpListener.Address)
-	assert.Equal(t, 1111, cfg.GRPCListener.GRPCServerTcpListener.Port)
+	assert.Equal(t, "localhost", cfg.GRPCListener.Address)
+	assert.Equal(t, 1111, cfg.GRPCListener.Port)
 
 	// Defaults still applied
 	assert.NotNil(t, cfg.HTTPServer)
@@ -162,7 +162,7 @@ func TestCreateListener_TCP(t *testing.T) {
 	cfg := DefaultConfig()
 
 	// Use a random port to avoid conflicts
-	cfg.GRPCListener.GRPCServerTcpListener.Port = 0
+	cfg.GRPCListener.Port = 0
 
 	lis, err := cfg.CreateListener()
 	require.NoError(t, err)
