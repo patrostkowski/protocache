@@ -1,5 +1,9 @@
 package store
 
+import (
+	"github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
+)
+
 type Store interface {
 	Set(key string, value []byte) error
 	Get(key string) ([]byte, error)
@@ -9,10 +13,11 @@ type Store interface {
 	This() map[string][]byte
 }
 
-type StoreError string
-
-const StoreErrorKeyNotFound StoreError = "key not found"
-
-func (e StoreError) Error() string {
-	return string(e)
+func NewStore(engine v1alpha.StoreEngine) Store {
+	switch engine {
+	case v1alpha.SyncMapStoreEngine:
+		return NewSyncMapStore()
+	default:
+		return NewMapStore()
+	}
 }

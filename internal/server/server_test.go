@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/stretchr/testify/assert"
@@ -35,18 +36,18 @@ import (
 
 func defaultConfig(tmpDir string) *config.Config {
 	return &config.Config{
-		ServerConfig: &config.ServerConfig{
+		ServerConfig: &v1alpha.ServerConfig{
 			ShutdownTimeout: 1 * time.Second,
 		},
-		HTTPServer: &config.HTTPServerConfig{
+		HTTPServer: &v1alpha.HTTPServerConfig{
 			Port: 0,
 		},
-		GRPCListener: &config.GRPCServerListenerConfig{
-			GRPCServerTcpListener: &config.GRPCServerTcpListener{
+		GRPCListener: &v1alpha.GRPCServerListenerConfig{
+			GRPCServerTcpListener: &v1alpha.GRPCServerTcpListener{
 				Port: 0,
 			},
 		},
-		StoreConfig: &config.StoreConfig{
+		StoreConfig: &v1alpha.StoreConfig{
 			DumpEnabled:    true,
 			MemoryDumpPath: filepath.Join(tmpDir, "store.gob.gz"),
 		},
@@ -219,7 +220,7 @@ func generateTestCertAndKey(certPath, keyPath string) error {
 
 func TestGRPCServerFailsWithInvalidTLS(t *testing.T) {
 	cfg := defaultConfig(t.TempDir())
-	cfg.TLSConfig = &config.TLSConfig{
+	cfg.TLSConfig = &v1alpha.TLSConfig{
 		Enabled:  true,
 		CertFile: "/invalid/cert.pem",
 		KeyFile:  "/invalid/key.pem",
@@ -239,7 +240,7 @@ func TestHTTPServerTLS_StartsTLS(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := defaultConfig(tmpDir)
-	cfg.TLSConfig = &config.TLSConfig{
+	cfg.TLSConfig = &v1alpha.TLSConfig{
 		Enabled:  true,
 		CertFile: certPath,
 		KeyFile:  keyPath,

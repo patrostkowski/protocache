@@ -1,9 +1,7 @@
-package syncmapstore
+package store
 
 import (
 	"sync"
-
-	"github.com/patrostkowski/protocache/internal/store"
 )
 
 type SyncMapStore struct {
@@ -22,7 +20,7 @@ func (s *SyncMapStore) Set(key string, value []byte) error {
 func (s *SyncMapStore) Get(key string) ([]byte, error) {
 	val, ok := s.data.Load(key)
 	if !ok {
-		return nil, store.StoreErrorKeyNotFound
+		return nil, StoreErrorKeyNotFound
 	}
 	return val.([]byte), nil
 }
@@ -30,7 +28,7 @@ func (s *SyncMapStore) Get(key string) ([]byte, error) {
 func (s *SyncMapStore) Delete(key string) error {
 	_, ok := s.data.Load(key)
 	if !ok {
-		return store.StoreErrorKeyNotFound
+		return StoreErrorKeyNotFound
 	}
 	s.data.Delete(key)
 	return nil

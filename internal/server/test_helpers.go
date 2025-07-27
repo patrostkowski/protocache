@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -25,7 +26,8 @@ func NewTestServer(t *testing.T) *Server {
 	dumpPath := filepath.Join(tmpDir, "store.gob.gz")
 
 	cfg := &config.Config{
-		StoreConfig: &config.StoreConfig{
+		StoreConfig: &v1alpha.StoreConfig{
+			Engine:         v1alpha.MapStoreEngine,
 			MemoryDumpPath: dumpPath,
 		},
 	}
