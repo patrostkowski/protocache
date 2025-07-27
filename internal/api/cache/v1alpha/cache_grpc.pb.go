@@ -16,9 +16,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v3.19.6
-// source: api/cache.proto
+// source: internal/api/cache/v1alpha/cache.proto
 
-package cache
+package v1alpha
 
 import (
 	context "context"
@@ -33,12 +33,12 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	CacheService_List_FullMethodName   = "/cache.CacheService/List"
-	CacheService_Set_FullMethodName    = "/cache.CacheService/Set"
-	CacheService_Get_FullMethodName    = "/cache.CacheService/Get"
-	CacheService_Delete_FullMethodName = "/cache.CacheService/Delete"
-	CacheService_Clear_FullMethodName  = "/cache.CacheService/Clear"
-	CacheService_Stats_FullMethodName  = "/cache.CacheService/Stats"
+	CacheService_List_FullMethodName   = "/cache.v1alpha.CacheService/List"
+	CacheService_Set_FullMethodName    = "/cache.v1alpha.CacheService/Set"
+	CacheService_Get_FullMethodName    = "/cache.v1alpha.CacheService/Get"
+	CacheService_Delete_FullMethodName = "/cache.v1alpha.CacheService/Delete"
+	CacheService_Clear_FullMethodName  = "/cache.v1alpha.CacheService/Clear"
+	CacheService_Stats_FullMethodName  = "/cache.v1alpha.CacheService/Stats"
 )
 
 // CacheServiceClient is the client API for CacheService service.
@@ -281,7 +281,7 @@ func _CacheService_Stats_Handler(srv interface{}, ctx context.Context, dec func(
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var CacheService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "cache.CacheService",
+	ServiceName: "cache.v1alpha.CacheService",
 	HandlerType: (*CacheServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -310,5 +310,5 @@ var CacheService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "api/cache.proto",
+	Metadata: "internal/api/cache/v1alpha/cache.proto",
 }
