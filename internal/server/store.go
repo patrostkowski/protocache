@@ -73,7 +73,7 @@ func (s *Server) PersistMemoryStore() error {
 	}
 	defer f.Close()
 
-	if err := encodeAndCompress(f, s.store); err != nil {
+	if err := encodeAndCompress(f, s.store.This()); err != nil {
 		s.logger.Error("Failed to encode and compress the memory store", "error", err.Error())
 		return err
 	}
@@ -83,6 +83,8 @@ func (s *Server) PersistMemoryStore() error {
 }
 
 func (s *Server) ReadPersistedMemoryStore() error {
+	thisStore := s.store.This()
+
 	path := s.config.MemoryDumpFileFullPath()
 	f, err := openStoreFileForRead(path)
 	if err != nil {
@@ -95,11 +97,11 @@ func (s *Server) ReadPersistedMemoryStore() error {
 	}
 	defer f.Close()
 
-	if err := decodeAndDecompress(f, &s.store); err != nil {
+	if err := decodeAndDecompress(f, &thisStore); err != nil {
 		s.logger.Error("Failed to decode and decompress memory store dump file", "error", err.Error())
 		return err
 	}
 
-	s.logger.Info("Successfully read memory store dump into memory", "size", len(s.store))
+	s.logger.Info("Successfully read memory store dump into memory", "size", len(thisStore))
 	return nil
 }

@@ -16,15 +16,13 @@ package server
 
 import (
 	"context"
+	"errors"
 	"log/slog"
-	"maps"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
-	"slices"
-	"sync"
 	"syscall"
 	"time"
 
@@ -37,14 +35,13 @@ import (
 
 	pb "github.com/patrostkowski/protocache/api/pb"
 	"github.com/patrostkowski/protocache/internal/config"
+	"github.com/patrostkowski/protocache/internal/store"
 )
 
 type Server struct {
 	pb.UnimplementedCacheServiceServer
 
-	mu    sync.RWMutex
-	store map[string][]byte
-
+	store      store.Store
 	logger     *slog.Logger
 	config     *config.Config
 	listener   *net.Listener
@@ -59,7 +56,7 @@ func NewServer(logger *slog.Logger, config *config.Config, reg prometheus.Regist
 		reg = prometheus.DefaultRegisterer
 	}
 	return &Server{
-		store:    make(map[string][]byte),
+		store:    store.NewMapStore(),
 		logger:   logger,
 		config:   config,
 		registry: reg,
@@ -71,20 +68,21 @@ func (s *Server) Set(ctx context.Context, req *pb.SetRequest) (*pb.SetResponse, 
 		return nil, status.Error(codes.InvalidArgument, "key must not be empty")
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.store[req.Key] = req.Value
+	if err := s.store.Set(req.Key, req.Value); err != nil {
+		return nil, status.Errorf(codes.Aborted, "could not set %q key", req.Key)
+	}
 	return &pb.SetResponse{Success: true, Message: "OK"}, nil
 }
 
 func (s *Server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	val, ok := s.store[req.Key]
+	val, err := s.store.Get(req.Key)
 
-	if !ok {
-		CacheMisses.Inc()
-		return nil, status.Errorf(codes.NotFound, "key %q not found", req.Key)
+	if err != nil {
+		if errors.Is(err, store.StoreErrorKeyNotFound) {
+			CacheMisses.Inc()
+			return nil, status.Errorf(codes.NotFound, "key %q not found", req.Key)
+		}
+		return nil, status.Errorf(codes.Unknown, "internal error: %v", err)
 	}
 
 	CacheHits.Inc()
@@ -92,42 +90,31 @@ func (s *Server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, 
 }
 
 func (s *Server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, ok := s.store[req.Key]; !ok {
-		return nil, status.Errorf(codes.NotFound, "key %q not found", req.Key)
+	if err := s.store.Delete(req.Key); err != nil {
+		return nil, status.Errorf(codes.Unknown, "internal error: %v", err)
 	}
-
-	delete(s.store, req.Key)
 	return &pb.DeleteResponse{Success: true, Message: "deleted"}, nil
 }
 
 func (s *Server) Clear(ctx context.Context, req *pb.ClearRequest) (*pb.ClearResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.store = make(map[string][]byte)
+	s.store.Clear()
 	return &pb.ClearResponse{Success: true, Message: "cleared"}, nil
 }
 
 func (s *Server) List(ctx context.Context, req *pb.ListRequest) (*pb.ListResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	keys := slices.Collect(maps.Keys(s.store))
+	keys := s.store.List()
 	return &pb.ListResponse{Keys: keys}, nil
 }
 
 func (s *Server) Stats(ctx context.Context, _ *pb.StatsRequest) (*pb.StatsResponse, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	var totalBytes uint64
-	for _, v := range s.store {
+	thisStore := s.store.This()
+	for _, v := range thisStore {
 		totalBytes += uint64(len(v))
 	}
 
 	return &pb.StatsResponse{
-		KeyCount:         uint64(len(s.store)),
+		KeyCount:         uint64(len(thisStore)),
 		MemoryUsageBytes: totalBytes,
 		GoVersion:        runtime.Version(),
 		Timestamp:        time.Now().Format(time.RFC3339),
