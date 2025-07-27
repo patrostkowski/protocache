@@ -51,8 +51,12 @@ func NewServer(logger *slog.Logger, config *config.Config, reg prometheus.Regist
 	if reg == nil {
 		reg = prometheus.DefaultRegisterer
 	}
+	store, err := config.NewStore()
+	if err != nil {
+		panic(err)
+	}
 	return &Server{
-		store:    store.NewMapStore(),
+		store:    store,
 		logger:   logger,
 		config:   config,
 		registry: reg,
@@ -88,6 +92,12 @@ func (s *Server) Init() error {
 		Handler:           s.metricsHandler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+
+	store, err := s.config.NewStore()
+	if err != nil {
+		return err
+	}
+	s.store = store
 
 	if s.config.IsMemoryStoreDumpEnabled() {
 		if err := s.ReadPersistedMemoryStore(); err != nil {

@@ -1,9 +1,11 @@
-package store
+package mapstore
 
 import (
 	"maps"
 	"slices"
 	"sync"
+
+	"github.com/patrostkowski/protocache/internal/store"
 )
 
 type MapStore struct {
@@ -29,7 +31,7 @@ func (m *MapStore) Get(key string) ([]byte, error) {
 	defer m.mu.RUnlock()
 	value, exists := m.data[key]
 	if !exists {
-		return nil, StoreErrorKeyNotFound
+		return nil, store.StoreErrorKeyNotFound
 	}
 	return value, nil
 }
@@ -38,7 +40,7 @@ func (m *MapStore) Delete(key string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, exists := m.data[key]; !exists {
-		return StoreErrorKeyNotFound
+		return store.StoreErrorKeyNotFound
 	}
 	delete(m.data, key)
 	return nil
