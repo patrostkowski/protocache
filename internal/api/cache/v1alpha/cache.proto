@@ -14,9 +14,9 @@
 
 syntax = "proto3";
 
-package cache;
+package cache.v1alpha;
 
-option go_package = "api/pb;cache";
+option go_package = "github.com/patrostkowski/protocache/internal/api/cache/v1alpha";
 
 service CacheService {
   rpc List(ListRequest) returns (ListResponse);

@@ -29,13 +29,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
-	pb "github.com/patrostkowski/protocache/api/pb"
+	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/patrostkowski/protocache/internal/store"
 )
 
 type Server struct {
-	pb.UnimplementedCacheServiceServer
+	cachev1alpha.UnimplementedCacheServiceServer
 
 	store      store.Store
 	logger     *slog.Logger
@@ -81,7 +81,7 @@ func (s *Server) initGRPCServer() error {
 	)
 
 	s.grpcServer = grpc.NewServer(opts...)
-	pb.RegisterCacheServiceServer(s.grpcServer, s)
+	cachev1alpha.RegisterCacheServiceServer(s.grpcServer, s)
 	s.metrics.InitializeMetrics(s.grpcServer)
 	reflection.Register(s.grpcServer)
 

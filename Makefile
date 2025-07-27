@@ -7,7 +7,12 @@ DOCKER_IMAGE_NAME=patrostkowski/protocache
 all: build-all
 
 generate:
-	protoc --go_out=. --go-grpc_out=. api/cache.proto
+	protoc \
+		--go_out=. \
+		--go-grpc_out=. \
+		--go_opt=paths=source_relative \
+		--go-grpc_opt=paths=source_relative \
+		internal/api/cache/v1alpha/cache.proto
 
 run:
 	$(MAKE) build

@@ -25,7 +25,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	pb "github.com/patrostkowski/protocache/api/pb"
+	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -81,7 +81,7 @@ func main() {
 		panic(err)
 	}
 
-	client := pb.NewCacheServiceClient(conn)
+	client := cachev1alpha.NewCacheServiceClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -95,7 +95,7 @@ func main() {
 			fmt.Println("Usage: set <key> <value>")
 			return
 		}
-		_, err := client.Set(ctx, &pb.SetRequest{Key: params[0], Value: []byte(params[1])})
+		_, err := client.Set(ctx, &cachev1alpha.SetRequest{Key: params[0], Value: []byte(params[1])})
 		checkErr(err)
 		fmt.Println("OK")
 
@@ -104,7 +104,7 @@ func main() {
 			fmt.Println("Usage: get <key>")
 			return
 		}
-		res, err := client.Get(ctx, &pb.GetRequest{Key: params[0]})
+		res, err := client.Get(ctx, &cachev1alpha.GetRequest{Key: params[0]})
 		checkErr(err)
 		if !res.Found {
 			fmt.Println("(nil)")
@@ -119,24 +119,24 @@ func main() {
 			fmt.Println("Usage: del <key>")
 			return
 		}
-		_, err := client.Delete(ctx, &pb.DeleteRequest{Key: params[0]})
+		_, err := client.Delete(ctx, &cachev1alpha.DeleteRequest{Key: params[0]})
 		checkErr(err)
 		fmt.Println("Deleted")
 
 	case "clear":
-		_, err := client.Clear(ctx, &pb.ClearRequest{})
+		_, err := client.Clear(ctx, &cachev1alpha.ClearRequest{})
 		checkErr(err)
 		fmt.Println("Cache cleared")
 
 	case "list":
-		res, err := client.List(ctx, &pb.ListRequest{})
+		res, err := client.List(ctx, &cachev1alpha.ListRequest{})
 		checkErr(err)
 		for _, k := range res.Keys {
 			fmt.Println(k)
 		}
 
 	case "stats":
-		res, err := client.Stats(ctx, &pb.StatsRequest{})
+		res, err := client.Stats(ctx, &cachev1alpha.StatsRequest{})
 		checkErr(err)
 		fmt.Println(res)
 

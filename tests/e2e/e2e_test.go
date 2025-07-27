@@ -25,7 +25,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
-	pb "github.com/patrostkowski/protocache/api/pb"
+	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/patrostkowski/protocache/internal/server"
 	testhelpers "github.com/patrostkowski/protocache/internal/test"
@@ -40,7 +40,7 @@ func startTestServer(t *testing.T) (addr string, stop func()) {
 	assert.NoError(t, err)
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterCacheServiceServer(grpcServer, cacheService)
+	cachev1alpha.RegisterCacheServiceServer(grpcServer, cacheService)
 
 	go func() {
 		_ = grpcServer.Serve(lis)
@@ -63,21 +63,21 @@ func TestCacheService_E2E(t *testing.T) {
 	defer conn.Close()
 	assert.NoError(t, err)
 
-	client := pb.NewCacheServiceClient(conn)
+	client := cachev1alpha.NewCacheServiceClient(conn)
 	ctx := context.Background()
 
-	_, err = client.Set(ctx, &pb.SetRequest{Key: "test", Value: []byte("hello")})
+	_, err = client.Set(ctx, &cachev1alpha.SetRequest{Key: "test", Value: []byte("hello")})
 	assert.NoError(t, err)
 
-	getResp, err := client.Get(ctx, &pb.GetRequest{Key: "test"})
+	getResp, err := client.Get(ctx, &cachev1alpha.GetRequest{Key: "test"})
 	assert.NoError(t, err)
 	assert.True(t, getResp.Found)
 	assert.Equal(t, []byte("hello"), getResp.Value)
 
-	_, err = client.Delete(ctx, &pb.DeleteRequest{Key: "test"})
+	_, err = client.Delete(ctx, &cachev1alpha.DeleteRequest{Key: "test"})
 	assert.NoError(t, err)
 
-	getResp, err = client.Get(ctx, &pb.GetRequest{Key: "test"})
+	getResp, err = client.Get(ctx, &cachev1alpha.GetRequest{Key: "test"})
 	assert.Error(t, err)
 	assert.Nil(t, getResp)
 

@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"testing"
 
-	pb "github.com/patrostkowski/protocache/api/pb"
+	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/patrostkowski/protocache/internal/server"
 	testhelpers "github.com/patrostkowski/protocache/internal/test"
@@ -32,7 +32,7 @@ func BenchmarkSet(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		key := "key" + strconv.Itoa(i)
-		if _, err := server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")}); err != nil {
+		if _, err := server.Set(ctx, &cachev1alpha.SetRequest{Key: key, Value: []byte("value")}); err != nil {
 			b.Fatalf("Set failed: %v", err)
 		}
 	}
@@ -45,13 +45,13 @@ func BenchmarkGet(b *testing.B) {
 
 	// Preload a key
 	key := "benchmark_key"
-	if _, err := server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")}); err != nil {
+	if _, err := server.Set(ctx, &cachev1alpha.SetRequest{Key: key, Value: []byte("value")}); err != nil {
 		b.Fatalf("Set failed: %v", err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := server.Get(ctx, &pb.GetRequest{Key: key}); err != nil {
+		if _, err := server.Get(ctx, &cachev1alpha.GetRequest{Key: key}); err != nil {
 			b.Fatalf("Set failed: %v", err)
 		}
 	}
@@ -64,10 +64,10 @@ func BenchmarkDelete(b *testing.B) {
 
 	key := "key_to_delete"
 	for i := 0; i < b.N; i++ {
-		if _, err := server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")}); err != nil {
+		if _, err := server.Set(ctx, &cachev1alpha.SetRequest{Key: key, Value: []byte("value")}); err != nil {
 			b.Fatalf("Set failed: %v", err)
 		}
-		if _, err := server.Delete(ctx, &pb.DeleteRequest{Key: key}); err != nil {
+		if _, err := server.Delete(ctx, &cachev1alpha.DeleteRequest{Key: key}); err != nil {
 			b.Fatalf("Set failed: %v", err)
 		}
 	}
@@ -78,14 +78,14 @@ func BenchmarkGetParallel(b *testing.B) {
 	server := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
 	ctx := context.Background()
 	key := "hot"
-	if _, err := server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("hit")}); err != nil {
+	if _, err := server.Set(ctx, &cachev1alpha.SetRequest{Key: key, Value: []byte("hit")}); err != nil {
 		b.Fatalf("Set failed: %v", err)
 	}
 
 	b.ResetTimer()
 	b.RunParallel(func(p *testing.PB) {
 		for p.Next() {
-			if _, err := server.Get(ctx, &pb.GetRequest{Key: key}); err != nil {
+			if _, err := server.Get(ctx, &cachev1alpha.GetRequest{Key: key}); err != nil {
 				b.Fatalf("Set failed: %v", err)
 			}
 		}
@@ -100,14 +100,14 @@ func BenchmarkList(b *testing.B) {
 	// Preload some keys
 	for i := 0; i < 1000; i++ {
 		key := "key" + strconv.Itoa(i)
-		if _, err := server.Set(ctx, &pb.SetRequest{Key: key, Value: []byte("value")}); err != nil {
+		if _, err := server.Set(ctx, &cachev1alpha.SetRequest{Key: key, Value: []byte("value")}); err != nil {
 			b.Fatalf("Set failed: %v", err)
 		}
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := server.List(ctx, &pb.ListRequest{}); err != nil {
+		if _, err := server.List(ctx, &cachev1alpha.ListRequest{}); err != nil {
 			b.Fatalf("Set failed: %v", err)
 		}
 	}

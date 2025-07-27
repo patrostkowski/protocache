@@ -27,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/patrostkowski/protocache/api/pb"
+	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/patrostkowski/protocache/internal/server"
 	testhelpers "github.com/patrostkowski/protocache/internal/test"
@@ -63,10 +63,10 @@ func TestPersistAndReadMemoryStore(t *testing.T) {
 	s1 := server.NewServer(logger, cfg, testhelpers.DefaultPrometheusRegistry())
 	ctx := context.Background()
 
-	_, err := s1.Set(ctx, &pb.SetRequest{Key: "foo", Value: []byte("bar")})
+	_, err := s1.Set(ctx, &cachev1alpha.SetRequest{Key: "foo", Value: []byte("bar")})
 	require.NoError(t, err)
 
-	_, err = s1.Set(ctx, &pb.SetRequest{Key: "baz", Value: []byte("qux")})
+	_, err = s1.Set(ctx, &cachev1alpha.SetRequest{Key: "baz", Value: []byte("qux")})
 	require.NoError(t, err)
 
 	err = s1.PersistMemoryStore()
@@ -76,11 +76,11 @@ func TestPersistAndReadMemoryStore(t *testing.T) {
 	err = s2.ReadPersistedMemoryStore()
 	require.NoError(t, err)
 
-	resp, err := s2.Get(ctx, &pb.GetRequest{Key: "foo"})
+	resp, err := s2.Get(ctx, &cachev1alpha.GetRequest{Key: "foo"})
 	require.NoError(t, err)
 	assert.Equal(t, []byte("bar"), resp.Value)
 
-	resp, err = s2.Get(ctx, &pb.GetRequest{Key: "baz"})
+	resp, err = s2.Get(ctx, &cachev1alpha.GetRequest{Key: "baz"})
 	require.NoError(t, err)
 	assert.Equal(t, []byte("qux"), resp.Value)
 }
