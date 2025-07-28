@@ -16,6 +16,7 @@ package server
 
 import (
 	"context"
+	"flag"
 	"net"
 	"net/http"
 	"os/signal"
@@ -205,12 +206,16 @@ func (s *Server) Shutdown() error {
 }
 
 func Run() error {
+	var configPath string
+	flag.StringVar(&configPath, "config", config.ConfigFileDefaultFilePath, "Path to configuration file")
+	flag.Parse()
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
-		logger.Warn("Could not load config from file, using default config", "error", err)
+		logger.Warn("Could not load config file, using default config", "path", configPath, "error", err)
 		cfg = config.DefaultConfig()
 	}
 

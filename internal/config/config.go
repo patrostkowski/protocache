@@ -31,16 +31,17 @@ import (
 )
 
 const (
-	GRPCPort              = 50051
-	HTTPPort              = 9091
-	ListenAddr            = "0.0.0.0"
-	UnixSocketPath        = "/var/run/protocache/protocache.sock"
-	ServerShutdownTimeout = 30 * time.Second
-	GracefulTimeout       = 10 * time.Second
-	MemoryDumpPath        = "/var/lib/protocache/"
-	MemoryDumpFileName    = "protocache.gob.gz"
-	ConfigFilePath        = "/etc/protocache/"
-	ConfigFileName        = "config.yaml"
+	GRPCPort                  = 50051
+	HTTPPort                  = 9091
+	ListenAddr                = "0.0.0.0"
+	UnixSocketPath            = "/var/run/protocache/protocache.sock"
+	ServerShutdownTimeout     = 30 * time.Second
+	GracefulTimeout           = 10 * time.Second
+	MemoryDumpPath            = "/var/lib/protocache/"
+	MemoryDumpFileName        = "protocache.gob.gz"
+	ConfigFilePath            = "/etc/protocache/"
+	ConfigFileName            = "config.yaml"
+	ConfigFileDefaultFilePath = ConfigFilePath + ConfigFileName
 )
 
 var (
@@ -109,12 +110,12 @@ func (c *Config) IsMemoryStoreDumpEnabled() bool {
 	return c.StoreConfig.DumpEnabled
 }
 
-func LoadConfig() (*Config, error) {
-	logger.Info("Attempting to load configuration", slog.String("path", configFileFullPath()))
+func LoadConfig(path string) (*Config, error) {
+	logger.Info("Attempting to load configuration", slog.String("path", path))
 
-	data, err := os.ReadFile(configFileFullPath())
+	data, err := os.ReadFile(path)
 	if err != nil {
-		logger.Warn("Could not read config file, falling back to defaults", slog.String("path", configFileFullPath()), slog.Any("error", err))
+		logger.Warn("Could not read config file", slog.String("path", path), slog.Any("error", err))
 		return nil, err
 	}
 
@@ -124,10 +125,14 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
-	// Apply default fallbacks manually
+	applyDefaults(cfg)
+	logger.Info("Configuration loaded successfully")
+	return cfg, nil
+}
+
+func applyDefaults(cfg *Config) {
 	defaults := DefaultConfig()
 
-	// Fill missing nested structs
 	if cfg.GRPCListener == nil {
 		cfg.GRPCListener = defaults.GRPCListener
 	}
@@ -137,35 +142,24 @@ func LoadConfig() (*Config, error) {
 	if cfg.StoreConfig == nil {
 		cfg.StoreConfig = defaults.StoreConfig
 	}
-
-	// Fill TCP listener defaults if not overridden
 	if cfg.GRPCListener.GRPCServerTcpListener == nil && defaults.GRPCListener.GRPCServerTcpListener != nil {
 		cfg.GRPCListener.GRPCServerTcpListener = defaults.GRPCListener.GRPCServerTcpListener
 	}
-
-	// Fill Unix listener if provided via defaults (only needed if you set it by default)
 	if cfg.GRPCListener.GRPCServerUnixListener == nil && defaults.GRPCListener.GRPCServerUnixListener != nil {
 		cfg.GRPCListener.GRPCServerUnixListener = defaults.GRPCListener.GRPCServerUnixListener
 	}
-
-	// Fill HTTP port/address if missing
 	if cfg.HTTPServer.Address == "" {
 		cfg.HTTPServer.Address = defaults.HTTPServer.Address
 	}
 	if cfg.HTTPServer.Port == 0 {
 		cfg.HTTPServer.Port = defaults.HTTPServer.Port
 	}
-
-	// Same for Store
 	if cfg.StoreConfig.MemoryDumpPath == "" {
 		cfg.StoreConfig.MemoryDumpPath = defaults.StoreConfig.MemoryDumpPath
 	}
 	if cfg.StoreConfig.MemoryDumpFileName == "" {
 		cfg.StoreConfig.MemoryDumpFileName = defaults.StoreConfig.MemoryDumpFileName
 	}
-
-	logger.Info("Configuration loaded successfully")
-	return cfg, nil
 }
 
 func (c *Config) CreateListener() (net.Listener, error) {
