@@ -69,7 +69,7 @@ store:
 	configFileFullPath = func() string { return yamlPath }
 	defer func() { configFileFullPath = originalPath }()
 
-	cfg, err := LoadConfig()
+	cfg, err := LoadConfig(yamlPath)
 	require.NoError(t, err)
 
 	assert.Equal(t, "127.0.0.1", cfg.GRPCListener.Address)
@@ -103,7 +103,7 @@ http_server:
 	configFileFullPath = func() string { return yamlPath }
 	defer func() { configFileFullPath = originalPath }()
 
-	cfg, err := LoadConfig()
+	cfg, err := LoadConfig(yamlPath)
 	require.NoError(t, err)
 
 	assert.Equal(t, "/tmp/grpc.sock", cfg.GRPCListener.SocketPath)
@@ -112,13 +112,9 @@ http_server:
 }
 
 func TestLoadConfig_FileNotFound(t *testing.T) {
-	originalPath := configFileFullPath
-	configFileFullPath = func() string {
-		return filepath.Join(t.TempDir(), "nonexistent.yaml")
-	}
-	defer func() { configFileFullPath = originalPath }()
+	nonexistentPath := filepath.Join(t.TempDir(), "nonexistent.yaml")
 
-	_, err := LoadConfig()
+	_, err := LoadConfig(nonexistentPath)
 	assert.Error(t, err)
 }
 
@@ -142,7 +138,7 @@ store:
 	configFileFullPath = func() string { return yamlPath }
 	defer func() { configFileFullPath = originalPath }()
 
-	cfg, err := LoadConfig()
+	cfg, err := LoadConfig(yamlPath)
 	require.NoError(t, err)
 
 	// GRPC
