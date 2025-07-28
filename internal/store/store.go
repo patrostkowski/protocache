@@ -13,11 +13,12 @@ type Store interface {
 	This() map[string][]byte
 }
 
-func NewStore(engine v1alpha.StoreEngine) Store {
+func NewStore(engine v1alpha.StoreEngine, policy v1alpha.EvictionPolicy) Store {
+	strategy := NewEvictionStrategy(policy, defaultEvictionPolicyCapacity)
 	switch engine {
 	case v1alpha.SyncMapStoreEngine:
 		return NewSyncMapStore()
 	default:
-		return NewMapStore()
+		return NewMapStore(strategy)
 	}
 }

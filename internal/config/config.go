@@ -210,3 +210,7 @@ func (c *Config) CreateTLS() (grpc.ServerOption, error) {
 func (c *Config) GetStoreEngine() v1alpha.StoreEngine {
 	return c.StoreConfig.Engine
 }
+
+func (c *Config) GetEvictionPolicy() v1alpha.EvictionPolicy {
+	return c.StoreConfig.EvictionPolicy
+}
