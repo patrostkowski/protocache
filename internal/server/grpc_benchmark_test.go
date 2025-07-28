@@ -25,7 +25,7 @@ import (
 
 func BenchmarkSet(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
+	server := NewServer(cfg, DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	for i := 0; i < b.N; i++ {
@@ -38,7 +38,7 @@ func BenchmarkSet(b *testing.B) {
 
 func BenchmarkGet(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
+	server := NewServer(cfg, DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	// Preload a key
@@ -57,7 +57,7 @@ func BenchmarkGet(b *testing.B) {
 
 func BenchmarkDelete(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
+	server := NewServer(cfg, DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	key := "key_to_delete"
@@ -73,7 +73,7 @@ func BenchmarkDelete(b *testing.B) {
 
 func BenchmarkGetParallel(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
+	server := NewServer(cfg, DefaultPrometheusRegistry())
 	ctx := context.Background()
 	key := "hot"
 	if _, err := server.Set(ctx, &cachev1alpha.SetRequest{Key: key, Value: []byte("hit")}); err != nil {
@@ -92,7 +92,7 @@ func BenchmarkGetParallel(b *testing.B) {
 
 func BenchmarkList(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
+	server := NewServer(cfg, DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	// Preload some keys

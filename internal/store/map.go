@@ -4,6 +4,8 @@ import (
 	"maps"
 	"slices"
 	"sync"
+
+	"github.com/patrostkowski/protocache/internal/logger"
 )
 
 type MapStore struct {
@@ -27,6 +29,7 @@ func (m *MapStore) Set(key string, value []byte) error {
 		if evictKey, shouldEvict := m.evictionStrategy.Evict(m.data); shouldEvict {
 			delete(m.data, evictKey)
 			m.evictionStrategy.OnDelete(evictKey)
+			logger.Debug("Evicted key from store", "key", evictKey)
 		}
 		m.evictionStrategy.OnInsert(key, len(value))
 	}
@@ -68,6 +71,7 @@ func (m *MapStore) Clear() {
 	if m.evictionStrategy != nil {
 		m.evictionStrategy.Reset()
 	}
+	logger.Debug("Cleared entire store")
 }
 
 func (m *MapStore) List() []string {

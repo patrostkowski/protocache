@@ -7,6 +7,7 @@ import (
 	"time"
 
 	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
+	"github.com/patrostkowski/protocache/internal/logger"
 	"github.com/patrostkowski/protocache/internal/store"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -14,10 +15,12 @@ import (
 
 func (s *Server) Set(ctx context.Context, req *cachev1alpha.SetRequest) (*cachev1alpha.SetResponse, error) {
 	if req.Key == "" {
+		logger.Error("Failed to set empty key in store")
 		return nil, status.Error(codes.InvalidArgument, "key must not be empty")
 	}
 
 	if err := s.store.Set(req.Key, req.Value); err != nil {
+		logger.Error("Failed to set key in store", "key", req.Key, "error", err)
 		return nil, status.Errorf(codes.Aborted, "could not set %q key", req.Key)
 	}
 	return &cachev1alpha.SetResponse{Success: true, Message: "OK"}, nil
@@ -28,8 +31,10 @@ func (s *Server) Get(ctx context.Context, req *cachev1alpha.GetRequest) (*cachev
 	if err != nil {
 		if errors.Is(err, store.StoreErrorKeyNotFound) {
 			CacheMisses.Inc()
+			logger.Warn("Cache miss", "key", req.Key)
 			return nil, status.Errorf(codes.NotFound, "key %q not found", req.Key)
 		}
+		logger.Error("Failed to get key from store", "key", req.Key, "error", err)
 		return nil, status.Errorf(codes.Unknown, "internal error: %v", err)
 	}
 
@@ -39,6 +44,7 @@ func (s *Server) Get(ctx context.Context, req *cachev1alpha.GetRequest) (*cachev
 
 func (s *Server) Delete(ctx context.Context, req *cachev1alpha.DeleteRequest) (*cachev1alpha.DeleteResponse, error) {
 	if err := s.store.Delete(req.Key); err != nil {
+		logger.Error("Failed to delete key from store", "key", req.Key, "error", err)
 		return nil, status.Errorf(codes.Unknown, "internal error: %v", err)
 	}
 	return &cachev1alpha.DeleteResponse{Success: true, Message: "deleted"}, nil

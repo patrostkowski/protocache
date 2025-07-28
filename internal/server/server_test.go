@@ -50,15 +50,16 @@ func defaultConfig(tmpDir string) *config.Config {
 			DumpEnabled:    true,
 			MemoryDumpPath: filepath.Join(tmpDir, "store.gob.gz"),
 		},
+		TLSConfig: &v1alpha.TLSConfig{
+			Enabled: false,
+		},
 	}
 }
 
 func TestPersistAndReadMemoryStore(t *testing.T) {
 	cfg := defaultConfig(t.TempDir())
 
-	logger := DefaultLogger()
-
-	s1 := NewServer(logger, cfg, DefaultPrometheusRegistry())
+	s1 := NewServer(cfg, DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	_, err := s1.Set(ctx, &v1alpha.SetRequest{Key: "foo", Value: []byte("bar")})
@@ -70,7 +71,7 @@ func TestPersistAndReadMemoryStore(t *testing.T) {
 	err = s1.PersistMemoryStore()
 	require.NoError(t, err)
 
-	s2 := NewServer(logger, cfg, DefaultPrometheusRegistry())
+	s2 := NewServer(cfg, DefaultPrometheusRegistry())
 	err = s2.ReadPersistedMemoryStore()
 	require.NoError(t, err)
 
@@ -99,7 +100,7 @@ func TestReadPersistedMemoryStore_EmptyFile(t *testing.T) {
 
 	cfg := defaultConfig(tmpDir)
 
-	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
+	s := NewServer(cfg, DefaultPrometheusRegistry())
 	err = s.ReadPersistedMemoryStore()
 	assert.NoError(t, err)
 }
@@ -107,7 +108,7 @@ func TestReadPersistedMemoryStore_EmptyFile(t *testing.T) {
 func TestServerLifecycle_InitAndShutdown(t *testing.T) {
 	cfg := defaultConfig("/tmp")
 
-	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
+	s := NewServer(cfg, DefaultPrometheusRegistry())
 
 	err := s.Init()
 	assert.NoError(t, err)
@@ -119,7 +120,7 @@ func TestServerLifecycle_InitAndShutdown(t *testing.T) {
 func TestServerStart_CancelContextTriggersShutdown(t *testing.T) {
 	cfg := defaultConfig(t.TempDir())
 
-	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
+	s := NewServer(cfg, DefaultPrometheusRegistry())
 	require.NoError(t, s.Init())
 
 	t.Cleanup(func() {
@@ -162,7 +163,7 @@ func TestServerInit_ReadPersistedMemoryStoreFails(t *testing.T) {
 
 	cfg := defaultConfig(dumpPath)
 
-	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
+	s := NewServer(cfg, DefaultPrometheusRegistry())
 	err := s.Init()
 	assert.Error(t, err)
 }
@@ -225,7 +226,7 @@ func TestGRPCServerFailsWithInvalidTLS(t *testing.T) {
 		KeyFile:  "/invalid/key.pem",
 	}
 
-	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
+	s := NewServer(cfg, DefaultPrometheusRegistry())
 	err := s.Init()
 	assert.ErrorContains(t, err, "failed to load TLS credentials")
 }
@@ -247,7 +248,7 @@ func TestHTTPServerTLS_StartsTLS(t *testing.T) {
 
 	cfg.HTTPServer.Port = 0
 
-	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
+	s := NewServer(cfg, DefaultPrometheusRegistry())
 	require.NoError(t, s.Init())
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -271,7 +272,7 @@ func TestServerInit_ListenerCreationFails(t *testing.T) {
 	cfg.GRPCListener.Address = ""
 	cfg.GRPCListener.Port = -1
 
-	s := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
+	s := NewServer(cfg, DefaultPrometheusRegistry())
 	err := s.Init()
 	assert.Error(t, err)
 }

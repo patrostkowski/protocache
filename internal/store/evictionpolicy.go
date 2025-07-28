@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
+	"github.com/patrostkowski/protocache/internal/logger"
 )
 
 const (
@@ -75,6 +76,7 @@ func (l *LRUStrategy) Evict(data map[string][]byte) (string, bool) {
 		}
 	}
 
+	logger.Debug("Evicting key (LRU)", "key", oldestKey, "lastAccess", oldestTime)
 	return oldestKey, true
 }
 
