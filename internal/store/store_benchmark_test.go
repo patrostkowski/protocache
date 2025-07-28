@@ -45,7 +45,7 @@ func benchmarkStoreDelete(b *testing.B, store Store) {
 }
 
 func BenchmarkMapStore_Set(b *testing.B) {
-	benchmarkStoreSet(b, NewMapStore())
+	benchmarkStoreSet(b, NewMapStore(nil))
 }
 
 func BenchmarkSyncMapStore_Set(b *testing.B) {
@@ -53,7 +53,7 @@ func BenchmarkSyncMapStore_Set(b *testing.B) {
 }
 
 func BenchmarkMapStore_Get(b *testing.B) {
-	benchmarkStoreGet(b, NewMapStore())
+	benchmarkStoreGet(b, NewMapStore(nil))
 }
 
 func BenchmarkSyncMapStore_Get(b *testing.B) {
@@ -61,7 +61,7 @@ func BenchmarkSyncMapStore_Get(b *testing.B) {
 }
 
 func BenchmarkMapStore_Delete(b *testing.B) {
-	benchmarkStoreDelete(b, NewMapStore())
+	benchmarkStoreDelete(b, NewMapStore(nil))
 }
 
 func BenchmarkSyncMapStore_Delete(b *testing.B) {

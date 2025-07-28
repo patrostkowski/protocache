@@ -10,7 +10,7 @@ http_server:
   port: 9091
 
 tls:
-  enabled: true
+  enabled: false
   cert_file: /etc/protocache/cert.pem
   key_file: /etc/protocache/key.pem
 

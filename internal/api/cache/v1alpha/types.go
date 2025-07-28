@@ -46,9 +46,19 @@ const (
 	SyncMapStoreEngine StoreEngine = "syncmap"
 )
 
+type EvictionPolicy string
+
+const (
+	EvictionNone   EvictionPolicy = "none"
+	EvictionLRU    EvictionPolicy = "lru"
+	EvictionLFU    EvictionPolicy = "lfu"
+	EvictionRandom EvictionPolicy = "random"
+)
+
 type StoreConfig struct {
-	Engine             StoreEngine `yaml:"engine"`
-	DumpEnabled        bool        `yaml:"dump_enabled"`
-	MemoryDumpPath     string      `yaml:"memory_dump_path"`
-	MemoryDumpFileName string      `yaml:"memory_dump_file_name"`
+	Engine             StoreEngine    `yaml:"engine"`
+	EvictionPolicy     EvictionPolicy `yaml:"eviction_policy"`
+	DumpEnabled        bool           `yaml:"dump_enabled"`
+	MemoryDumpPath     string         `yaml:"memory_dump_path"`
+	MemoryDumpFileName string         `yaml:"memory_dump_file_name"`
 }
