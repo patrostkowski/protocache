@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal_test
+package server
 
 import (
 	"context"
@@ -21,13 +21,11 @@ import (
 
 	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
-	"github.com/patrostkowski/protocache/internal/server"
-	testhelpers "github.com/patrostkowski/protocache/internal/test"
 )
 
 func BenchmarkSet(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	server := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	for i := 0; i < b.N; i++ {
@@ -40,7 +38,7 @@ func BenchmarkSet(b *testing.B) {
 
 func BenchmarkGet(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	server := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	// Preload a key
@@ -59,7 +57,7 @@ func BenchmarkGet(b *testing.B) {
 
 func BenchmarkDelete(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	server := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	key := "key_to_delete"
@@ -75,7 +73,7 @@ func BenchmarkDelete(b *testing.B) {
 
 func BenchmarkGetParallel(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	server := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
 	ctx := context.Background()
 	key := "hot"
 	if _, err := server.Set(ctx, &cachev1alpha.SetRequest{Key: key, Value: []byte("hit")}); err != nil {
@@ -94,7 +92,7 @@ func BenchmarkGetParallel(b *testing.B) {
 
 func BenchmarkList(b *testing.B) {
 	cfg := config.DefaultConfig()
-	server := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	server := NewServer(DefaultLogger(), cfg, DefaultPrometheusRegistry())
 	ctx := context.Background()
 
 	// Preload some keys

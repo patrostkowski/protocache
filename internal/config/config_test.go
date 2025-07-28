@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -180,8 +181,8 @@ func TestCreateListener_Unix(t *testing.T) {
 	socketPath := filepath.Join(tmpDir, "test.sock")
 
 	cfg := &Config{
-		GRPCListener: &GRPCServerListenerConfig{
-			GRPCServerUnixListener: &GRPCServerUnixListener{
+		GRPCListener: &v1alpha.GRPCServerListenerConfig{
+			GRPCServerUnixListener: &v1alpha.GRPCServerUnixListener{
 				SocketPath: socketPath,
 			},
 		},
@@ -201,8 +202,8 @@ func TestCreateListener_Unix(t *testing.T) {
 
 func TestCreateListener_Unix_MissingSocketPath(t *testing.T) {
 	cfg := &Config{
-		GRPCListener: &GRPCServerListenerConfig{
-			GRPCServerUnixListener: &GRPCServerUnixListener{
+		GRPCListener: &v1alpha.GRPCServerListenerConfig{
+			GRPCServerUnixListener: &v1alpha.GRPCServerUnixListener{
 				SocketPath: "",
 			},
 		},

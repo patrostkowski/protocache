@@ -28,7 +28,6 @@ import (
 	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/patrostkowski/protocache/internal/server"
-	testhelpers "github.com/patrostkowski/protocache/internal/test"
 )
 
 func startTestServer(t *testing.T) (addr string, stop func()) {
@@ -36,7 +35,7 @@ func startTestServer(t *testing.T) (addr string, stop func()) {
 	assert.NoError(t, err)
 
 	cfg := config.DefaultConfig()
-	cacheService := server.NewServer(testhelpers.DefaultLogger(), cfg, testhelpers.DefaultPrometheusRegistry())
+	cacheService := server.NewServer(server.DefaultLogger(), cfg, server.DefaultPrometheusRegistry())
 	assert.NoError(t, err)
 
 	grpcServer := grpc.NewServer()

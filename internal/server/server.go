@@ -51,15 +51,13 @@ func NewServer(logger *slog.Logger, config *config.Config, reg prometheus.Regist
 	if reg == nil {
 		reg = prometheus.DefaultRegisterer
 	}
-	store, err := config.NewStore()
-	if err != nil {
-		panic(err)
-	}
+	store := store.NewStore(config.GetStoreEngine())
 	return &Server{
 		store:    store,
 		logger:   logger,
 		config:   config,
 		registry: reg,
+		metrics:  grpcprom.NewServerMetrics(), // ✅ this must be here
 	}
 }
 
@@ -117,11 +115,7 @@ func (s *Server) Init() error {
 		return err
 	}
 
-	store, err := s.config.NewStore()
-	if err != nil {
-		return err
-	}
-	s.store = store
+	s.store = store.NewStore(s.config.GetStoreEngine())
 
 	if s.config.IsMemoryStoreDumpEnabled() {
 		if err := s.ReadPersistedMemoryStore(); err != nil {

@@ -1,16 +1,15 @@
-package server_test
+package server
 
 import (
 	"context"
 	"testing"
 
 	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
-	testhelpers "github.com/patrostkowski/protocache/internal/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSetAndGet(t *testing.T) {
-	server := testhelpers.NewTestServer(t)
+	server := NewTestServer(t)
 	ctx := context.Background()
 
 	_, err := server.Set(ctx, &cachev1alpha.SetRequest{Key: "foo", Value: []byte("bar")})
@@ -26,7 +25,7 @@ func TestSetAndGet(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	server := testhelpers.NewTestServer(t)
+	server := NewTestServer(t)
 	ctx := context.Background()
 
 	if _, err := server.Set(ctx, &cachev1alpha.SetRequest{Key: "foo", Value: []byte("bar")}); err != nil {
@@ -41,7 +40,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestClear(t *testing.T) {
-	server := testhelpers.NewTestServer(t)
+	server := NewTestServer(t)
 	ctx := context.Background()
 
 	if _, err := server.Set(ctx, &cachev1alpha.SetRequest{Key: "a", Value: []byte("1")}); err != nil {
@@ -61,7 +60,7 @@ func TestClear(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	server := testhelpers.NewTestServer(t)
+	server := NewTestServer(t)
 	ctx := context.Background()
 
 	if _, err := server.Set(ctx, &cachev1alpha.SetRequest{Key: "a", Value: []byte("1")}); err != nil {

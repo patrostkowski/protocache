@@ -1,37 +1,31 @@
-// Copyright 2025 Patryk Rostkowski
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package main
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/base64"
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"time"
 	"unicode/utf8"
 
-	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/patrostkowski/protocache/internal/client"
 )
 
 func main() {
+	cfg, cmd, params := parseFlags()
+
+	c, err := client.New(cfg)
+	checkErr(err)
+	defer c.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
+	defer cancel()
+
+	runCommand(ctx, c, cmd, params)
+}
+
+func parseFlags() (client.Config, string, []string) {
 	host := flag.String("host", "localhost", "gRPC server host")
 	port := flag.Int("port", 50051, "gRPC server port")
 	socket := flag.String("socket", "", "Unix socket path (overrides host/port)")
@@ -42,111 +36,97 @@ func main() {
 
 	if len(args) < 1 {
 		usage()
-		return
+		log.Fatal("no command provided")
 	}
 
-	var (
-		conn *grpc.ClientConn
-		opts []grpc.DialOption
-		err  error
-	)
-
-	if *cert != "" && *key != "" {
-		certificate, err := tls.LoadX509KeyPair(*cert, *key)
-		checkErr(err)
-
-		tlsConfig := &tls.Config{
-			Certificates:       []tls.Certificate{certificate},
-			InsecureSkipVerify: true, // #nosec G402
-		}
-
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
-	} else {
-		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	cfg := client.Config{
+		Host:    *host,
+		Port:    *port,
+		Socket:  *socket,
+		Cert:    *cert,
+		Key:     *key,
+		Timeout: 2 * time.Second,
 	}
 
-	if *socket != "" {
-		opts = append(opts, grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-			return net.Dial("unix", *socket)
-		}))
-		conn, err = grpc.NewClient("unix://"+*socket, opts...)
-	} else {
-		target := fmt.Sprintf("%s:%d", *host, *port)
-		conn, err = grpc.NewClient(target, opts...)
-	}
+	return cfg, args[0], args[1:]
+}
 
-	defer conn.Close()
-
-	if err != nil {
-		panic(err)
-	}
-
-	client := cachev1alpha.NewCacheServiceClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	cmd := args[0]
-	params := args[1:]
-
+func runCommand(ctx context.Context, c *client.Client, cmd string, params []string) {
 	switch cmd {
 	case "set":
-		if len(params) != 2 {
-			fmt.Println("Usage: set <key> <value>")
-			return
-		}
-		_, err := client.Set(ctx, &cachev1alpha.SetRequest{Key: params[0], Value: []byte(params[1])})
-		checkErr(err)
-		fmt.Println("OK")
-
+		runSet(ctx, c, params)
 	case "get":
-		if len(params) != 1 {
-			fmt.Println("Usage: get <key>")
-			return
-		}
-		res, err := client.Get(ctx, &cachev1alpha.GetRequest{Key: params[0]})
-		checkErr(err)
-		if !res.Found {
-			fmt.Println("(nil)")
-		} else if utf8.Valid(res.Value) {
-			fmt.Printf("%s\n", res.Value)
-		} else {
-			fmt.Printf("(binary) %s\n", base64.StdEncoding.EncodeToString(res.Value))
-		}
-
+		runGet(ctx, c, params)
 	case "del":
-		if len(params) != 1 {
-			fmt.Println("Usage: del <key>")
-			return
-		}
-		_, err := client.Delete(ctx, &cachev1alpha.DeleteRequest{Key: params[0]})
-		checkErr(err)
-		fmt.Println("Deleted")
-
+		runDelete(ctx, c, params)
 	case "clear":
-		_, err := client.Clear(ctx, &cachev1alpha.ClearRequest{})
-		checkErr(err)
-		fmt.Println("Cache cleared")
-
+		runClear(ctx, c)
 	case "list":
-		res, err := client.List(ctx, &cachev1alpha.ListRequest{})
-		checkErr(err)
-		for _, k := range res.Keys {
-			fmt.Println(k)
-		}
-
+		runList(ctx, c)
 	case "stats":
-		res, err := client.Stats(ctx, &cachev1alpha.StatsRequest{})
-		checkErr(err)
-		fmt.Println(res)
-
+		runStats(ctx, c)
 	case "help":
 		usage()
-
 	default:
 		fmt.Println("Unknown command:", cmd)
 		usage()
 	}
+}
+
+func runSet(ctx context.Context, c *client.Client, params []string) {
+	if len(params) != 2 {
+		fmt.Println("Usage: set <key> <value>")
+		return
+	}
+	err := c.Set(ctx, params[0], params[1])
+	checkErr(err)
+	fmt.Println("OK")
+}
+
+func runGet(ctx context.Context, c *client.Client, params []string) {
+	if len(params) != 1 {
+		fmt.Println("Usage: get <key>")
+		return
+	}
+	res, err := c.Get(ctx, params[0])
+	checkErr(err)
+	if !res.Found {
+		fmt.Println("(nil)")
+	} else if utf8.Valid(res.Value) {
+		fmt.Printf("%s\n", res.Value)
+	} else {
+		fmt.Printf("(binary) %s\n", base64.StdEncoding.EncodeToString(res.Value))
+	}
+}
+
+func runDelete(ctx context.Context, c *client.Client, params []string) {
+	if len(params) != 1 {
+		fmt.Println("Usage: del <key>")
+		return
+	}
+	err := c.Delete(ctx, params[0])
+	checkErr(err)
+	fmt.Println("Deleted")
+}
+
+func runClear(ctx context.Context, c *client.Client) {
+	err := c.Clear(ctx)
+	checkErr(err)
+	fmt.Println("Cache cleared")
+}
+
+func runList(ctx context.Context, c *client.Client) {
+	keys, err := c.List(ctx)
+	checkErr(err)
+	for _, k := range keys {
+		fmt.Println(k)
+	}
+}
+
+func runStats(ctx context.Context, c *client.Client) {
+	stats, err := c.Stats(ctx)
+	checkErr(err)
+	fmt.Println(stats)
 }
 
 func usage() {
@@ -159,14 +139,15 @@ Flags:
   -socket  Path to Unix socket (takes priority over host:port)
   -cert    TLS client certificate file (optional, enables TLS if set)
   -key     TLS client key file (required if --cert is set)
-  
+
 Commands:
   set <key> <value>     Set a value
   get <key>             Get a value
   del <key>             Delete a key
   list                  List all keys
   stats                 Print server stats
-  clear                 Clear the cache`)
+  clear                 Clear the cache
+  help                  Show this help message`)
 }
 
 func checkErr(err error) {

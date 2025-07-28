@@ -22,9 +22,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/patrostkowski/protocache/internal/store"
-	"github.com/patrostkowski/protocache/internal/store/mapstore"
-	"github.com/patrostkowski/protocache/internal/store/syncmapstore"
+	"github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/yaml.v3"
@@ -55,93 +53,42 @@ var configFileFullPath = func() string {
 }
 
 type Config struct {
-	GRPCListener *GRPCServerListenerConfig `yaml:"grpc_listener"`
-	HTTPServer   *HTTPServerConfig         `yaml:"http_server"`
-	ServerConfig *ServerConfig             `yaml:"server"`
-	StoreConfig  *StoreConfig              `yaml:"store"`
-	TLSConfig    *TLSConfig                `yaml:"tls"`
-}
-
-type GRPCServerListenerType int
-
-const (
-	UNIX GRPCServerListenerType = iota
-	TCP
-)
-
-type GRPCServerListenerConfig struct {
-	*GRPCServerUnixListener `yaml:",inline"`
-	*GRPCServerTcpListener  `yaml:",inline"`
-}
-
-type GRPCServerUnixListener struct {
-	SocketPath string `yaml:"socket_path"`
-}
-
-type GRPCServerTcpListener struct {
-	Address string `yaml:"address"` // ":50051" or "/tmp/protocache.sock"
-	Port    int    `yaml:"port"`
-}
-
-type HTTPServerConfig struct {
-	Address string `yaml:"address"` // e.g., "0.0.0.0:9091"
-	Port    int    `yaml:"port"`
-}
-
-type ServerConfig struct {
-	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
-	GracefulTimeout time.Duration `yaml:"graceful_timeout"`
-}
-
-type StoreEngine string
-
-const (
-	MapStoreEngine     StoreEngine = "map"
-	SyncMapStoreEngine StoreEngine = "syncmap"
-)
-
-type StoreConfig struct {
-	Engine             StoreEngine `yaml:"engine"`
-	DumpEnabled        bool        `yaml:"dump_enabled"`
-	MemoryDumpPath     string      `yaml:"memory_dump_path"`
-	MemoryDumpFileName string      `yaml:"memory_dump_file_name"`
-}
-
-type TLSConfig struct {
-	Enabled  bool   `yaml:"enabled"`
-	CertFile string `yaml:"cert_file"`
-	KeyFile  string `yaml:"key_file"`
+	GRPCListener *v1alpha.GRPCServerListenerConfig `yaml:"grpc_listener"`
+	HTTPServer   *v1alpha.HTTPServerConfig         `yaml:"http_server"`
+	ServerConfig *v1alpha.ServerConfig             `yaml:"server"`
+	StoreConfig  *v1alpha.StoreConfig              `yaml:"store"`
+	TLSConfig    *v1alpha.TLSConfig                `yaml:"tls"`
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		GRPCListener: &GRPCServerListenerConfig{
-			GRPCServerTcpListener: &GRPCServerTcpListener{
+		GRPCListener: &v1alpha.GRPCServerListenerConfig{
+			GRPCServerTcpListener: &v1alpha.GRPCServerTcpListener{
 				Address: ListenAddr,
 				Port:    GRPCPort,
 			},
 		},
-		HTTPServer: &HTTPServerConfig{
+		HTTPServer: &v1alpha.HTTPServerConfig{
 			Address: ListenAddr,
 			Port:    HTTPPort,
 		},
-		StoreConfig: &StoreConfig{
-			Engine:             MapStoreEngine,
+		StoreConfig: &v1alpha.StoreConfig{
+			Engine:             v1alpha.MapStoreEngine,
 			DumpEnabled:        false,
 			MemoryDumpPath:     MemoryDumpPath,
 			MemoryDumpFileName: MemoryDumpFileName,
 		},
-		TLSConfig: &TLSConfig{
+		TLSConfig: &v1alpha.TLSConfig{
 			Enabled: false,
 		},
 	}
 }
 
-func (c *Config) GRPCListenerType() GRPCServerListenerType {
+func (c *Config) GRPCListenerType() v1alpha.GRPCServerListenerType {
 	if c.GRPCListener.SocketPath != "" {
-		return UNIX
+		return v1alpha.UNIX
 	}
-	return TCP
+	return v1alpha.TCP
 }
 
 func (c *Config) MemoryDumpFileFullPath() string {
@@ -260,11 +207,6 @@ func (c *Config) CreateTLS() (grpc.ServerOption, error) {
 	return grpc.Creds(creds), nil
 }
 
-func (c *Config) NewStore() (store.Store, error) {
-	switch c.StoreConfig.Engine {
-	case SyncMapStoreEngine:
-		return syncmapstore.NewSyncMapStore(), nil
-	default:
-		return mapstore.NewMapStore(), nil
-	}
+func (c *Config) GetStoreEngine() v1alpha.StoreEngine {
+	return c.StoreConfig.Engine
 }
