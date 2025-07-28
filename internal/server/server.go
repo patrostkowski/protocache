@@ -16,10 +16,8 @@ package server
 
 import (
 	"context"
-	"log/slog"
 	"net"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -31,6 +29,7 @@ import (
 
 	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
+	"github.com/patrostkowski/protocache/internal/logger"
 	"github.com/patrostkowski/protocache/internal/store"
 )
 
@@ -38,7 +37,6 @@ type Server struct {
 	cachev1alpha.UnimplementedCacheServiceServer
 
 	store      store.Store
-	logger     *slog.Logger
 	config     *config.Config
 	listener   *net.Listener
 	grpcServer *grpc.Server
@@ -47,14 +45,13 @@ type Server struct {
 	registry   prometheus.Registerer
 }
 
-func NewServer(logger *slog.Logger, config *config.Config, reg prometheus.Registerer) *Server {
+func NewServer(config *config.Config, reg prometheus.Registerer) *Server {
 	if reg == nil {
 		reg = prometheus.DefaultRegisterer
 	}
 	store := store.NewStore(config.GetStoreEngine(), config.GetEvictionPolicy())
 	return &Server{
 		store:    store,
-		logger:   logger,
 		config:   config,
 		registry: reg,
 		metrics:  grpcprom.NewServerMetrics(),
@@ -67,13 +64,18 @@ func (s *Server) initGRPCServer() error {
 	if tlsOpt, err := s.config.CreateTLS(); err != nil {
 		return err
 	} else if tlsOpt != nil {
+		logger.Info("TLS credentials initialized",
+			"cert", s.config.TLSConfig.CertFile,
+			"key", s.config.TLSConfig.KeyFile,
+		)
+
 		opts = append(opts, tlsOpt)
 	}
 
 	opts = append(opts,
 		grpc.ChainUnaryInterceptor(
 			s.metrics.UnaryServerInterceptor(),
-			LoggingUnaryInterceptor(s.logger),
+			LoggingUnaryInterceptor(),
 		),
 		grpc.ConnectionTimeout(s.config.ServerConfig.ShutdownTimeout),
 	)
@@ -85,9 +87,11 @@ func (s *Server) initGRPCServer() error {
 
 	listener, err := s.config.CreateListener()
 	if err != nil {
+		logger.Error("Failed to create listener", "error", err)
 		return err
 	}
 	s.listener = &listener
+	logger.Info("Listener created", "address", listener.Addr().String())
 
 	return nil
 }
@@ -98,6 +102,7 @@ func (s *Server) initHTTPServer() error {
 		Handler:           s.metricsHandler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+	logger.Info("HTTP server initialized", "addr", s.config.HTTPListenAddr())
 	return nil
 }
 
@@ -108,17 +113,24 @@ func (s *Server) Init() error {
 	}
 
 	if err := s.initGRPCServer(); err != nil {
+		logger.Error("gRPC server initialization failed", "error", err)
 		return err
 	}
+	logger.Debug("gRPC server initialized successfully")
 
 	if err := s.initHTTPServer(); err != nil {
+		logger.Error("HTTP server initialization failed", "error", err)
 		return err
 	}
+	logger.Debug("HTTP server initialized successfully")
 
 	if s.config.IsMemoryStoreDumpEnabled() {
+		logger.Info("Memory store dump is enabled. Attempting to restore from disk")
 		if err := s.ReadPersistedMemoryStore(); err != nil {
+			logger.Error("Failed to read persisted memory store", "error", err)
 			return err
 		}
+		logger.Info("Successfully read memory store dump into memory")
 	}
 
 	return nil
@@ -126,13 +138,13 @@ func (s *Server) Init() error {
 
 func (s *Server) startGRPCServer() error {
 	addr := (*s.listener).Addr().String()
-	s.logger.Info("Starting gRPC server", "addr", addr)
+	logger.Info("Starting gRPC server", "addr", addr)
 	return s.grpcServer.Serve(*s.listener)
 }
 
 func (s *Server) startHTTPServer() error {
 	addr := s.httpServer.Addr
-	s.logger.Info("Starting HTTP server", "addr", addr)
+	logger.Info("Starting HTTP server", "addr", addr)
 
 	if s.config.TLSConfig != nil && s.config.TLSConfig.Enabled {
 		return s.httpServer.ListenAndServeTLS(
@@ -157,9 +169,9 @@ func (s *Server) Start(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		s.logger.Info("Shutdown signal received")
+		logger.Info("Shutdown signal received")
 	case err := <-errCh:
-		s.logger.Error("Server crashed", "error", err)
+		logger.Error("Server crashed", "error", err)
 		return err
 	}
 
@@ -167,8 +179,10 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Shutdown() error {
+	logger.Info("Initiating shutdown sequence")
+
 	shutdownTimer := time.AfterFunc(s.config.ServerConfig.GracefulTimeout, func() {
-		s.logger.Warn("Graceful shutdown timeout exceeded, forcing stop")
+		logger.Warn("Graceful shutdown timeout exceeded, forcing stop")
 		s.grpcServer.Stop()
 	})
 	defer shutdownTimer.Stop()
@@ -176,17 +190,17 @@ func (s *Server) Shutdown() error {
 	s.grpcServer.GracefulStop()
 
 	if err := s.httpServer.Shutdown(context.Background()); err != nil {
-		s.logger.Error("Error shutting down HTTP server", "error", err)
+		logger.Error("Error shutting down HTTP server", "error", err)
 	}
 
 	if s.config.IsMemoryStoreDumpEnabled() {
 		if err := s.PersistMemoryStore(); err != nil {
-			s.logger.Error("Failed to persist memory store", "error", err)
+			logger.Error("Failed to persist memory store", "error", err)
 			return err
 		}
 	}
 
-	s.logger.Info("Server shut down cleanly")
+	logger.Info("Server shut down cleanly")
 	return nil
 }
 
@@ -194,15 +208,13 @@ func Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
-
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		logger.Warn("Could not load config from file, using default config", "error", err)
 		cfg = config.DefaultConfig()
 	}
 
-	srv := NewServer(logger, cfg, prometheus.DefaultRegisterer)
+	srv := NewServer(cfg, prometheus.DefaultRegisterer)
 
 	if err := srv.Init(); err != nil {
 		logger.Error("Initialization failed", "error", err)

@@ -18,12 +18,13 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/patrostkowski/protocache/internal/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
-func LoggingUnaryInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
+func LoggingUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
 		req interface{},

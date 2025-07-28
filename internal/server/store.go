@@ -21,6 +21,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/patrostkowski/protocache/internal/logger"
 )
 
 func encodeAndCompress(w io.Writer, store map[string][]byte) error {
@@ -62,23 +64,23 @@ func openStoreFileForRead(path string) (io.ReadCloser, error) {
 func (s *Server) PersistMemoryStore() error {
 	path := s.config.MemoryDumpFileFullPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		s.logger.Error("Failed to create directory for memory store dump", "error", err.Error())
+		logger.Error("Failed to create directory for memory store dump", "error", err.Error())
 		return err
 	}
 
 	f, err := openStoreFileForWrite(path)
 	if err != nil {
-		s.logger.Error("Failed to open memory store dump file", "error", err.Error())
+		logger.Error("Failed to open memory store dump file", "error", err.Error())
 		return err
 	}
 	defer f.Close()
 
 	if err := encodeAndCompress(f, s.store.This()); err != nil {
-		s.logger.Error("Failed to encode and compress the memory store", "error", err.Error())
+		logger.Error("Failed to encode and compress the memory store", "error", err.Error())
 		return err
 	}
 
-	s.logger.Info("Successfully written memory store dump to file", "path", path)
+	logger.Info("Successfully written memory store dump to file", "path", path)
 	return nil
 }
 
@@ -89,19 +91,19 @@ func (s *Server) ReadPersistedMemoryStore() error {
 	f, err := openStoreFileForRead(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) || errors.Is(err, io.EOF) {
-			s.logger.Warn("Memory store dump file does not exist or is empty, starting with empty store")
+			logger.Warn("Memory store dump file does not exist or is empty, starting with empty store")
 			return nil
 		}
-		s.logger.Error("Failed to open memory store dump file", "error", err.Error())
+		logger.Error("Failed to open memory store dump file", "error", err.Error())
 		return err
 	}
 	defer f.Close()
 
 	if err := decodeAndDecompress(f, &thisStore); err != nil {
-		s.logger.Error("Failed to decode and decompress memory store dump file", "error", err.Error())
+		logger.Error("Failed to decode and decompress memory store dump file", "error", err.Error())
 		return err
 	}
 
-	s.logger.Info("Successfully read memory store dump into memory", "size", len(thisStore))
+	logger.Info("Successfully read memory store dump into memory", "size", len(thisStore))
 	return nil
 }

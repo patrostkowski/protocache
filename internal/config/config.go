@@ -16,6 +16,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -23,6 +24,7 @@ import (
 	"time"
 
 	"github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
+	"github.com/patrostkowski/protocache/internal/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/yaml.v3"
@@ -108,13 +110,17 @@ func (c *Config) IsMemoryStoreDumpEnabled() bool {
 }
 
 func LoadConfig() (*Config, error) {
+	logger.Info("Attempting to load configuration", slog.String("path", configFileFullPath()))
+
 	data, err := os.ReadFile(configFileFullPath())
 	if err != nil {
+		logger.Warn("Could not read config file, falling back to defaults", slog.String("path", configFileFullPath()), slog.Any("error", err))
 		return nil, err
 	}
 
 	cfg := &Config{}
 	if err := yaml.Unmarshal(data, cfg); err != nil {
+		logger.Error("Failed to parse configuration file", slog.Any("error", err))
 		return nil, err
 	}
 
@@ -158,6 +164,7 @@ func LoadConfig() (*Config, error) {
 		cfg.StoreConfig.MemoryDumpFileName = defaults.StoreConfig.MemoryDumpFileName
 	}
 
+	logger.Info("Configuration loaded successfully")
 	return cfg, nil
 }
 
@@ -195,6 +202,8 @@ func (c *Config) CreateListener() (net.Listener, error) {
 }
 
 func (c *Config) CreateTLS() (grpc.ServerOption, error) {
+	logger.Info("Initializing TLS credentials", slog.String("cert", c.TLSConfig.CertFile), slog.String("key", c.TLSConfig.KeyFile))
+
 	if c.TLSConfig == nil || !c.TLSConfig.Enabled {
 		return nil, nil
 	}

@@ -1,8 +1,6 @@
 package server
 
 import (
-	"log/slog"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -10,10 +8,6 @@ import (
 	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/prometheus/client_golang/prometheus"
 )
-
-func DefaultLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
-}
 
 func DefaultPrometheusRegistry() *prometheus.Registry {
 	return prometheus.NewRegistry()
@@ -34,5 +28,5 @@ func NewTestServer(t *testing.T) *Server {
 
 	reg := DefaultPrometheusRegistry()
 
-	return NewServer(DefaultLogger(), cfg, reg)
+	return NewServer(cfg, reg)
 }
