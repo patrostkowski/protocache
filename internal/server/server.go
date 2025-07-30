@@ -73,12 +73,15 @@ func (s *Server) initGRPCServer() error {
 		opts = append(opts, tlsOpt)
 	}
 
+	if opt := s.config.GRPCConnectionTimeoutOption(); opt != nil {
+		opts = append(opts, opt)
+	}
+
 	opts = append(opts,
 		grpc.ChainUnaryInterceptor(
 			s.metrics.UnaryServerInterceptor(),
 			LoggingUnaryInterceptor(),
 		),
-		grpc.ConnectionTimeout(s.config.ServerConfig.ShutdownTimeout),
 	)
 
 	s.grpcServer = grpc.NewServer(opts...)
@@ -215,7 +218,7 @@ func Run() error {
 
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
-		logger.Warn("Could not load config file, using default config", "path", configPath, "error", err)
+		logger.Warn("using default config", "error", err)
 		cfg = config.DefaultConfig()
 	}
 

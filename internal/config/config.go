@@ -196,11 +196,10 @@ func (c *Config) CreateListener() (net.Listener, error) {
 }
 
 func (c *Config) CreateTLS() (grpc.ServerOption, error) {
-	logger.Info("Initializing TLS credentials", slog.String("cert", c.TLSConfig.CertFile), slog.String("key", c.TLSConfig.KeyFile))
-
 	if c.TLSConfig == nil || !c.TLSConfig.Enabled {
 		return nil, nil
 	}
+	logger.Info("Initializing TLS credentials", slog.String("cert", c.TLSConfig.CertFile), slog.String("key", c.TLSConfig.KeyFile))
 
 	creds, err := credentials.NewServerTLSFromFile(c.TLSConfig.CertFile, c.TLSConfig.KeyFile)
 	if err != nil {
@@ -208,6 +207,19 @@ func (c *Config) CreateTLS() (grpc.ServerOption, error) {
 	}
 
 	return grpc.Creds(creds), nil
+}
+
+func (c *Config) GRPCConnectionTimeoutOption() grpc.ServerOption {
+	if c == nil || c.ServerConfig == nil {
+		return nil
+	}
+
+	if c.ServerConfig.ShutdownTimeout <= 0 {
+		return nil
+	}
+	logger.Info("Applying gRPC shutdown timeout", "timeout", c.ServerConfig.ShutdownTimeout)
+
+	return grpc.ConnectionTimeout(c.ServerConfig.ShutdownTimeout)
 }
 
 func (c *Config) GetStoreEngine() v1alpha.StoreEngine {
