@@ -45,6 +45,9 @@ lint:
 
 check: lint-verify lint test
 
+license:
+	addlicense -c "Patryk Rostkowski" -l apache -y 2025 .
+
 test:
 	go test ./...
 
