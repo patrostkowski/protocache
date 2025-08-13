@@ -12,7 +12,7 @@ generate:
 		--go-grpc_out=. \
 		--go_opt=paths=source_relative \
 		--go-grpc_opt=paths=source_relative \
-		internal/api/cache/v1alpha/cache.proto
+		pkg/api/cache/v1alpha/cache.proto
 
 run:
 	$(MAKE) build

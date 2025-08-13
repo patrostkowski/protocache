@@ -16,7 +16,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v3.19.6
-// source: internal/api/cache/v1alpha/cache.proto
+// source: pkg/api/cache/v1alpha/cache.proto
 
 package v1alpha
 
@@ -310,5 +310,5 @@ var CacheService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "internal/api/cache/v1alpha/cache.proto",
+	Metadata: "pkg/api/cache/v1alpha/cache.proto",
 }

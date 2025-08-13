@@ -21,7 +21,7 @@ import (
 	"net"
 	"time"
 
-	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
+	cachev1alpha "github.com/patrostkowski/protocache/pkg/api/cache/v1alpha"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"

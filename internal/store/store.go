@@ -15,7 +15,7 @@
 package store
 
 import (
-	"github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
+	"github.com/patrostkowski/protocache/pkg/api/cache/v1alpha"
 )
 
 type Store interface {

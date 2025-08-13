@@ -17,8 +17,8 @@ package store
 import (
 	"time"
 
-	"github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/logger"
+	"github.com/patrostkowski/protocache/pkg/api/cache/v1alpha"
 )
 
 const (
