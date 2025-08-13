@@ -23,8 +23,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/logger"
+	"github.com/patrostkowski/protocache/pkg/api/cache/v1alpha"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/yaml.v3"

@@ -25,9 +25,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
-	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/patrostkowski/protocache/internal/server"
+	cachev1alpha "github.com/patrostkowski/protocache/pkg/api/cache/v1alpha"
 )
 
 func startTestServer(t *testing.T) (addr string, stop func()) {

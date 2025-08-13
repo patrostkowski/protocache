@@ -28,10 +28,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
-	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
 	"github.com/patrostkowski/protocache/internal/logger"
 	"github.com/patrostkowski/protocache/internal/store"
+	cachev1alpha "github.com/patrostkowski/protocache/pkg/api/cache/v1alpha"
 )
 
 type Server struct {

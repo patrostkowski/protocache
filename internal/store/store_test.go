@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
+	"github.com/patrostkowski/protocache/pkg/api/cache/v1alpha"
 	"github.com/stretchr/testify/assert"
 )
 

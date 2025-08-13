@@ -23,7 +23,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/patrostkowski/protocache/internal/client"
+	"github.com/patrostkowski/protocache/pkg/client"
 )
 
 func main() {

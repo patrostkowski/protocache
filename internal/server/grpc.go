@@ -20,9 +20,9 @@ import (
 	"runtime"
 	"time"
 
-	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/logger"
 	"github.com/patrostkowski/protocache/internal/store"
+	cachev1alpha "github.com/patrostkowski/protocache/pkg/api/cache/v1alpha"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

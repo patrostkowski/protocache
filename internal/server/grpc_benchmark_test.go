@@ -19,8 +19,8 @@ import (
 	"strconv"
 	"testing"
 
-	cachev1alpha "github.com/patrostkowski/protocache/internal/api/cache/v1alpha"
 	"github.com/patrostkowski/protocache/internal/config"
+	cachev1alpha "github.com/patrostkowski/protocache/pkg/api/cache/v1alpha"
 )
 
 func BenchmarkSet(b *testing.B) {
